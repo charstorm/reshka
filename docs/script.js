@@ -9,9 +9,9 @@ const config = {
     rephraseModel: 'openai/gpt-4o-mini'
 };
 
-const TRANSCRIPTION_SYSTEM_PROMPT = `You are a speech transcription system.
-Output ONLY the verbatim transcription of the provided audio. 
-Do not respond conversationally, do not answer questions, do not add commentary. 
+const TRANSCRIPTION_SYSTEM_PROMPT = `You are a speech transcription system named Reshka.
+Output ONLY the verbatim transcription of the provided audio.
+Do not respond conversationally, do not answer questions, do not add commentary.
 Only transcribe what is spoken.`;
 
 const VAD_CONFIG = {
@@ -154,7 +154,7 @@ function saveConfig() {
     config.apiKey = document.getElementById('apiKey').value;
     config.speechModel = document.getElementById('speechModel').value;
     config.rephraseModel = document.getElementById('rephraseModel').value;
-    
+
     localStorage.setItem('reshka:appConfig', JSON.stringify(config));
     configModal.hide();
     addLog('Configuration saved', 'success');
@@ -171,14 +171,14 @@ function float32ToWav(float32Array, sampleRate = 16000) {
         const s = Math.max(-1, Math.min(1, float32Array[i]));
         int16Array[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
     }
-    
+
     const buffer = new ArrayBuffer(44 + int16Array.length * 2);
     const view = new DataView(buffer);
-    
+
     writeString(view, 0, 'RIFF');
     view.setUint32(4, 36 + int16Array.length * 2, true);
     writeString(view, 8, 'WAVE');
-    
+
     writeString(view, 12, 'fmt ');
     view.setUint32(16, 16, true);
     view.setUint16(20, 1, true);
@@ -187,16 +187,16 @@ function float32ToWav(float32Array, sampleRate = 16000) {
     view.setUint32(28, sampleRate * 2, true);
     view.setUint16(32, 2, true);
     view.setUint16(34, 16, true);
-    
+
     writeString(view, 36, 'data');
     view.setUint32(40, int16Array.length * 2, true);
-    
+
     const bytes = new Uint8Array(buffer, 44);
     for (let i = 0; i < int16Array.length; i++) {
         bytes[i * 2] = int16Array[i] & 0xFF;
         bytes[i * 2 + 1] = (int16Array[i] >> 8) & 0xFF;
     }
-    
+
     return new Blob([buffer], { type: 'audio/wav' });
 }
 
@@ -235,38 +235,38 @@ async function startTranscription() {
         configModal.show();
         return;
     }
-    
+
     try {
         addLog('Initializing Silero VAD...', 'info');
         updateStatus('active', 'Initializing...');
-        
+
         myvad = await vad.MicVAD.new({
             onSpeechStart: () => {
                 updateStatus('speaking', 'Speaking detected');
                 addLog('Speech started', 'speech-start');
             },
-            
+
             onSpeechEnd: async (audio) => {
                 updateStatus('processing', 'Processing...');
                 const durationMs = (audio.length / 16000 * 1000).toFixed(0);
                 addLog(`Speech ended (${durationMs}ms)`, 'speech-end');
-                
+
                 await processSpeechAudio(audio);
-                
+
                 if (isTranscribing) {
                     updateStatus('active', 'Listening...');
                 }
             },
-            
+
             onVADMisfire: () => {
                 addLog('VAD misfire detected', 'warning');
             },
-            
+
             positiveSpeechThreshold: VAD_CONFIG.positiveSpeechThreshold,
             negativeSpeechThreshold: VAD_CONFIG.negativeSpeechThreshold,
             redemptionFrames: VAD_CONFIG.redemptionFrames,
             minSpeechFrames: VAD_CONFIG.minSpeechFrames,
-            
+
             onnxWASMBasePath: "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/",
             baseAssetPath: "https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@latest/dist/"
         });
@@ -296,7 +296,7 @@ async function stopTranscription() {
             console.error('Error stopping VAD:', error);
         }
     }
-    
+
     isTranscribing = false;
     updateToggleButton();
     updateStatus('ready', 'Ready');
@@ -318,7 +318,7 @@ function updateToggleButton() {
 function updateStatus(state, text) {
     const dot = document.getElementById('statusDot');
     const statusText = document.getElementById('statusText');
-    
+
     dot.className = 'status-dot ' + state;
     statusText.textContent = text;
 }
@@ -326,12 +326,12 @@ function updateStatus(state, text) {
 async function processSpeechAudio(audio) {
     try {
         addLog('Converting audio to WAV...', 'info');
-        
+
         const wavBlob = float32ToWav(audio, 16000);
         const base64Audio = await blobToBase64(wavBlob);
-        
+
         addLog('Sending to API...', 'api-call');
-        
+
         const requestBody = {
             model: config.speechModel,
             temperature: 0.7,
@@ -358,7 +358,7 @@ async function processSpeechAudio(audio) {
                 }
             ]
         };
-        
+
         const response = await fetch(config.endpoint, {
             method: 'POST',
             headers: {
@@ -367,25 +367,25 @@ async function processSpeechAudio(audio) {
             },
             body: JSON.stringify(requestBody)
         });
-        
+
         if (!response.ok) {
             const errorText = await response.text();
             throw new Error(`API request failed: ${response.status} ${response.statusText}`);
         }
-        
+
         const data = await response.json();
-        const transcription = data.choices?.[0]?.message?.content || 
-                             data.content?.[0]?.text || 
+        const transcription = data.choices?.[0]?.message?.content ||
+                             data.content?.[0]?.text ||
                              'No transcription available';
-        
+
         const cleanedTranscription = transcription
             .replace(/```json\n?/gi, '')
             .replace(/```\n?/g, '')
             .trim();
-        
+
         addLog(`Transcription received (${cleanedTranscription.length} chars)`, 'success');
         addTranscriptEntry(cleanedTranscription);
-        
+
     } catch (error) {
         console.error('Error processing speech:', error);
         addLog(`Transcription error: ${error.message}`, 'error');
@@ -397,13 +397,13 @@ function addLog(message, type = 'info') {
     const logArea = document.getElementById('logArea');
     const entry = document.createElement('div');
     entry.className = `log-entry ${type}`;
-    
+
     const timestamp = formatDateTimestamp(new Date());
     entry.innerHTML = `
         <div class="log-timestamp">${timestamp}</div>
         ${message}
     `;
-    
+
     logArea.appendChild(entry);
     logArea.scrollTop = logArea.scrollHeight;
 }
@@ -412,25 +412,25 @@ function addTranscriptEntry(text) {
     const transcriptArea = document.getElementById('transcriptArea');
     const now = new Date();
     const currentTimestamp = now.getTime();
-    
+
     // Add timestamp separator if needed (>10 min gap)
-    const shouldAddTimestamp = !lastTranscriptTimestamp || 
+    const shouldAddTimestamp = !lastTranscriptTimestamp ||
                                (currentTimestamp - lastTranscriptTimestamp) > (10 * 60 * 1000);
-    
+
     let content = transcriptArea.textContent.trim();
-    
+
     if (shouldAddTimestamp) {
         const timestamp = formatDateTimestamp(now);
         content += `\n--- [${timestamp}] ---`;
     }
-    
+
     // Add transcription text (trimmed)
     content += '\n' + text.trim();
     transcriptArea.textContent = content;
-    
+
     lastTranscriptTimestamp = currentTimestamp;
     transcriptArea.scrollTop = transcriptArea.scrollHeight;
-    
+
     saveTranscript();
 }
 
@@ -462,12 +462,12 @@ function clearTranscript() {
 function copyTranscript() {
     const transcriptArea = document.getElementById('transcriptArea');
     const text = transcriptArea.textContent.trim();
-    
+
     if (text === '') {
         showToast('No transcript to copy', 'error');
         return;
     }
-    
+
     navigator.clipboard.writeText(text).then(() => {
         showToast('Transcript copied to clipboard');
         addLog('Transcript copied to clipboard', 'success');
@@ -497,21 +497,21 @@ function saveTranscript() {
 async function rephraseTranscript() {
     const transcriptArea = document.getElementById('transcriptArea');
     const text = transcriptArea.textContent.trim();
-    
+
     if (text === '') {
         showToast('No transcript to rephrase', 'error');
         return;
     }
-    
+
     if (!config.apiKey) {
         showToast('Please configure your API key first', 'error');
         configModal.show();
         return;
     }
-    
+
     addLog('Rephrasing transcript...', 'api-call');
     updateStatus('processing', 'Rephrasing...');
-    
+
     try {
         const response = await fetch(config.endpoint, {
             method: 'POST',
@@ -530,16 +530,16 @@ async function rephraseTranscript() {
                 ]
             })
         });
-        
+
         if (!response.ok) {
             throw new Error(`API request failed: ${response.status} ${response.statusText}`);
         }
-        
+
         const data = await response.json();
-        const rephrased = data.choices?.[0]?.message?.content || 
-                         data.content?.[0]?.text || 
+        const rephrased = data.choices?.[0]?.message?.content ||
+                         data.content?.[0]?.text ||
                          'No rephrase available';
-        
+
         saveRephraseResult(rephrased);
         rephraseModal.show();
         updateStatus(isTranscribing ? 'active' : 'ready', isTranscribing ? 'Listening...' : 'Ready');
@@ -556,12 +556,12 @@ async function rephraseTranscript() {
 function copyRephrase() {
     const rephraseRawContent = document.getElementById('rephraseRawContent');
     const text = rephraseRawContent.textContent;
-    
+
     if (!text || text.includes('No rephrased content yet')) {
         showToast('No rephrased content to copy', 'error');
         return;
     }
-    
+
     navigator.clipboard.writeText(text).then(() => {
         showToast('Rephrased content copied to clipboard');
         addLog('Rephrased content copied', 'success');
@@ -597,21 +597,21 @@ function showToast(message, type = 'success') {
             </div>
         </div>
     `;
-    
+
     let toastContainer = document.querySelector('.toast-container');
     if (!toastContainer) {
         toastContainer = document.createElement('div');
         toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
         document.body.appendChild(toastContainer);
     }
-    
+
     const toastElement = document.createElement('div');
     toastElement.innerHTML = toastHtml;
     toastContainer.appendChild(toastElement.firstElementChild);
-    
+
     const toast = new bootstrap.Toast(toastContainer.lastElementChild, { delay: 3000 });
     toast.show();
-    
+
     toastContainer.lastElementChild.addEventListener('hidden.bs.toast', () => {
         toastContainer.lastElementChild.remove();
     });
