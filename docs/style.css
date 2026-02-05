@@ -1,0 +1,402 @@
+:root {
+    --brick-red: #c1666b;
+    --brick-red-dark: #9b4f54;
+    --status-ready: #6c757d;
+    --status-active: #28a745;
+    --status-speaking: #ff9800;
+    --status-processing: #007bff;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+body {
+    background-color: #faf7f5;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+}
+
+/* App Container */
+.app-container {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Control Panel */
+.control-panel {
+    height: 60px;
+    background: linear-gradient(135deg, var(--brick-red) 0%, var(--brick-red-dark) 100%);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 15px;
+    flex-shrink: 0;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.action-icons {
+    display: flex;
+    gap: 8px;
+    margin-left: auto;
+}
+
+/* App Title */
+.app-title {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.app-title .main-title {
+    color: white;
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+.app-title .subtitle {
+    color: rgba(255,255,255,0.8);
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 400;
+}
+
+/* Status Indicator - Fixed Size */
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 20px;
+    color: white;
+    font-size: 0.9rem;
+    font-weight: 500;
+    min-width: 200px;
+    width: 200px;
+    justify-content: center;
+    white-space: nowrap;
+}
+
+.status-indicator #statusText {
+    text-align: center;
+    min-width: 80px;
+}
+
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: var(--status-ready);
+    transition: all 0.3s ease;
+}
+
+.status-dot.ready {
+    background-color: var(--status-ready);
+}
+
+.status-dot.active {
+    background-color: var(--status-active);
+    animation: pulse-green 1.5s infinite;
+}
+
+.status-dot.speaking {
+    background-color: var(--status-speaking);
+    box-shadow: 0 0 10px var(--status-speaking);
+}
+
+.status-dot.processing {
+    background-color: var(--status-processing);
+    animation: spin 1s linear infinite;
+}
+
+@keyframes pulse-green {
+    0%, 100% { 
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% { 
+        opacity: 0.6;
+        transform: scale(1.2);
+    }
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Content Area */
+.content-area {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+}
+
+/* Panels */
+.log-panel,
+.transcript-panel {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.log-panel {
+    width: 30%;
+    background-color: #f8f9fa;
+    border-right: 1px solid #dee2e6;
+}
+
+.transcript-panel {
+    width: 70%;
+    background-color: white;
+}
+
+.panel-header {
+    height: 44px;
+    padding: 0 15px;
+    background-color: #e9ecef;
+    border-bottom: 1px solid #dee2e6;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #495057;
+    flex-shrink: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Log header clear button */
+.log-header-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-clear-log {
+    background: none;
+    border: none;
+    color: #6c757d;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    transition: all 0.2s;
+}
+
+.btn-clear-log:hover {
+    background-color: #dee2e6;
+    color: #495057;
+}
+
+.panel-header button {
+    padding: 4px 8px;
+    font-size: 0.8rem;
+}
+
+/* Panel Content Areas */
+.panel-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 15px;
+}
+
+/* Log Panel Specific */
+.log-content {
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    line-height: 1.5;
+}
+
+.log-entry {
+    margin-bottom: 8px;
+    padding: 8px;
+    background-color: white;
+    border-radius: 4px;
+    border-left: 3px solid #dee2e6;
+}
+
+.log-entry.speech-start {
+    border-left-color: var(--status-speaking);
+    background-color: #fff3e0;
+}
+
+.log-entry.speech-end {
+    border-left-color: var(--status-active);
+    background-color: #e8f5e9;
+}
+
+.log-entry.api-call {
+    border-left-color: var(--status-processing);
+    background-color: #e3f2fd;
+}
+
+.log-entry.error {
+    border-left-color: #dc3545;
+    background-color: #ffebee;
+}
+
+.log-entry.success {
+    border-left-color: var(--status-active);
+}
+
+.log-timestamp {
+    color: #6c757d;
+    font-size: 0.75rem;
+    margin-bottom: 2px;
+}
+
+/* Transcript Panel - Plain Text */
+.transcript-content {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 1rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.transcript-content:focus {
+    outline: none;
+}
+
+/* Timestamp separator in transcript */
+.transcript-timestamp {
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* Buttons */
+.btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+/* Toggle button - white with brick-red text */
+.btn-toggle {
+    background-color: white;
+    color: var(--brick-red);
+}
+
+.btn-toggle:hover {
+    background-color: #f0f0f0;
+}
+
+/* Toggle button in active state (red) */
+.btn-toggle.active {
+    background-color: #dc3545;
+    color: white;
+}
+
+.btn-toggle.active:hover {
+    background-color: #c82333;
+}
+
+/* Icon buttons in control panel */
+.btn-icon {
+    background-color: rgba(255,255,255,0.2);
+    color: white;
+    padding: 8px 12px;
+}
+
+.btn-icon:hover {
+    background-color: rgba(255,255,255,0.35);
+}
+
+.btn-icon:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* Modal Styles */
+.modal-content {
+    border: none;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.modal-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.modal-footer {
+    background-color: #f8f9fa;
+    border-top: 1px solid #dee2e6;
+    gap: 8px;
+}
+
+.modal-footer .btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.modal-footer .btn-secondary {
+    background-color: #6c757d;
+    color: white;
+}
+
+.modal-footer .btn-secondary:hover {
+    background-color: #5a6268;
+}
+
+.modal-footer .btn-primary {
+    background: linear-gradient(135deg, var(--brick-red) 0%, var(--brick-red-dark) 100%);
+    color: white;
+}
+
+.modal-footer .btn-primary:hover {
+    opacity: 0.9;
+}
+
+.modal-footer .btn-outline-primary {
+    background-color: transparent;
+    color: var(--brick-red);
+    border: 2px solid var(--brick-red);
+}
+
+.modal-footer .btn-outline-primary:hover {
+    background-color: var(--brick-red);
+    color: white;
+}
+
+/* Scrollbar Styling */
+.panel-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.panel-content::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.panel-content::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+.panel-content::-webkit-scrollbar-thumb:hover {
+    background: #a1a1a1;
+}
+
+/* Toast Container */
+.toast-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1050;
+}
