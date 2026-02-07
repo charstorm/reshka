@@ -375,8 +375,8 @@ async function processSpeechAudio(audio) {
 
         const data = await response.json();
         const transcription = data.choices?.[0]?.message?.content ||
-                             data.content?.[0]?.text ||
-                             'No transcription available';
+            data.content?.[0]?.text ||
+            'No transcription available';
 
         const cleanedTranscription = transcription
             .replace(/```json\n?/gi, '')
@@ -415,7 +415,7 @@ function addTranscriptEntry(text) {
 
     // Add timestamp separator if needed (>10 min gap)
     const shouldAddTimestamp = !lastTranscriptTimestamp ||
-                               (currentTimestamp - lastTranscriptTimestamp) > (10 * 60 * 1000);
+        (currentTimestamp - lastTranscriptTimestamp) > (10 * 60 * 1000);
 
     let content = transcriptArea.textContent.trim();
 
@@ -537,8 +537,8 @@ async function rephraseTranscript() {
 
         const data = await response.json();
         const rephrased = data.choices?.[0]?.message?.content ||
-                         data.content?.[0]?.text ||
-                         'No rephrase available';
+            data.content?.[0]?.text ||
+            'No rephrase available';
 
         saveRephraseResult(rephrased);
         rephraseModal.show();

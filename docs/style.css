@@ -11,7 +11,8 @@
     box-sizing: border-box;
 }
 
-html, body {
+html,
+body {
     height: 100%;
     margin: 0;
     padding: 0;
@@ -39,7 +40,7 @@ body {
     padding: 0 20px;
     gap: 15px;
     flex-shrink: 0;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .action-icons {
@@ -63,7 +64,7 @@ body {
 }
 
 .app-title .subtitle {
-    color: rgba(255,255,255,0.8);
+    color: rgba(255, 255, 255, 0.8);
     margin: 0;
     font-size: 0.75rem;
     font-weight: 400;
@@ -75,7 +76,7 @@ body {
     align-items: center;
     gap: 8px;
     padding: 6px 12px;
-    background: rgba(255,255,255,0.2);
+    background: rgba(255, 255, 255, 0.2);
     border-radius: 20px;
     color: white;
     font-size: 0.9rem;
@@ -119,19 +120,27 @@ body {
 }
 
 @keyframes pulse-green {
-    0%, 100% { 
+
+    0%,
+    100% {
         opacity: 1;
         transform: scale(1);
     }
-    50% { 
+
+    50% {
         opacity: 0.6;
         transform: scale(1.2);
     }
 }
 
 @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* Content Area */
@@ -199,6 +208,56 @@ body {
 .panel-header button {
     padding: 4px 8px;
     font-size: 0.8rem;
+}
+
+/* Transcription Panel Header Layout */
+.transcription-header {
+    justify-content: space-between;
+}
+
+.header-title-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.panel-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #495057;
+}
+
+/* Header icon buttons */
+.btn-icon-header {
+    background: none;
+    border: none;
+    color: #6c757d;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+}
+
+.btn-icon-header:hover {
+    background-color: #dee2e6;
+    color: #495057;
+}
+
+.btn-icon-header.btn-delete:hover {
+    background-color: #dc3545;
+    color: white;
+}
+
+/* Copy button with subtle grey border */
+#copyBtn {
+    border: 2px solid #adb5bd;
+    color: #6c757d;
+}
+
+#copyBtn:hover {
+    background-color: #adb5bd;
+    color: white;
 }
 
 /* Panel Content Areas */
@@ -305,13 +364,13 @@ body {
 
 /* Icon buttons in control panel */
 .btn-icon {
-    background-color: rgba(255,255,255,0.2);
+    background-color: rgba(255, 255, 255, 0.2);
     color: white;
     padding: 8px 12px;
 }
 
 .btn-icon:hover {
-    background-color: rgba(255,255,255,0.35);
+    background-color: rgba(255, 255, 255, 0.35);
 }
 
 .btn-icon:disabled {
@@ -322,7 +381,7 @@ body {
 /* Modal Styles */
 .modal-content {
     border: none;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .modal-header {

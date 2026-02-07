@@ -1,36 +1,42 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reshka - Handsfree Transcription</title>
 
     <!-- Favicon - microphone icon for transcription app -->
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎙️</text></svg>">
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎙️</text></svg>">
 
     <!-- Social Media Meta Tags -->
-    <meta name="description" content="Reshka - A handsfree transcription tool with voice activity detection and AI rephrasing capabilities.">
+    <meta name="description"
+        content="Reshka - A handsfree transcription tool with voice activity detection and AI rephrasing capabilities.">
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://charstorm.github.io/reshka/">
     <meta property="og:title" content="Reshka - Handsfree Transcription">
-    <meta property="og:description" content="A handsfree transcription tool with voice activity detection and AI rephrasing capabilities. Speak freely, get clean text.">
+    <meta property="og:description"
+        content="A handsfree transcription tool with voice activity detection and AI rephrasing capabilities. Speak freely, get clean text.">
 
     <!-- Twitter -->
     <meta property="twitter:card" content="summary">
     <meta property="twitter:url" content="https://charstorm.github.io/reshka/">
     <meta property="twitter:title" content="Reshka - Handsfree Transcription">
-    <meta property="twitter:description" content="A handsfree transcription tool with voice activity detection and AI rephrasing capabilities. Speak freely, get clean text.">
-    
+    <meta property="twitter:description"
+        content="A handsfree transcription tool with voice activity detection and AI rephrasing capabilities. Speak freely, get clean text.">
+
     <!-- Bootstrap 5.3.8 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
-    
+
     <!-- Font Awesome 6.5.1 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    
+
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <div class="app-container">
         <!-- Control Panel -->
@@ -40,64 +46,31 @@
                 <div class="main-title">Reshka</div>
                 <div class="subtitle">Handsfree Transcription</div>
             </div>
-            
+
             <!-- Status Indicator (Centered) -->
             <div class="status-indicator">
                 <span class="status-dot ready" id="statusDot"></span>
                 <span id="statusText">Ready</span>
             </div>
-            
+
             <!-- All Buttons Group (Right) -->
             <div class="action-icons">
                 <!-- Start Button -->
-                <button 
-                    class="btn btn-toggle" 
-                    id="toggleBtn"
-                    onclick="toggleTranscription()">
+                <button class="btn btn-toggle" id="toggleBtn" onclick="toggleTranscription()">
                     <i class="fas fa-play me-2"></i>Start
                 </button>
-                
-                <button 
-                    class="btn btn-icon" 
-                    id="clearBtn"
-                    data-bs-toggle="tooltip" 
-                    title="Clear Transcript"
-                    onclick="clearTranscript()">
-                    <i class="fas fa-trash"></i>
-                </button>
-                
-                <button 
-                    class="btn btn-icon" 
-                    id="copyBtn"
-                    data-bs-toggle="tooltip" 
-                    title="Copy Transcript"
-                    onclick="copyTranscript()">
-                    <i class="fas fa-copy"></i>
-                </button>
-                
-                <button 
-                    class="btn btn-icon" 
-                    id="rephraseBtn"
-                    data-bs-toggle="tooltip" 
-                    title="Rephrase Transcript"
+
+                <button class="btn btn-icon" id="rephraseBtn" data-bs-toggle="tooltip" title="Rephrase Transcript"
                     onclick="rephraseTranscript()">
                     <i class="fas fa-magic"></i>
                 </button>
-                
-                <button 
-                    class="btn btn-icon" 
-                    id="viewRephraseBtn"
-                    data-bs-toggle="tooltip" 
-                    title="View Last Rephrased"
+
+                <button class="btn btn-icon" id="viewRephraseBtn" data-bs-toggle="tooltip" title="View Last Rephrased"
                     onclick="showRephraseModal()">
                     <i class="fas fa-eye"></i>
                 </button>
-                
-                <button 
-                    class="btn btn-icon" 
-                    data-bs-toggle="tooltip" 
-                    title="Configuration"
-                    onclick="showConfigModal()">
+
+                <button class="btn btn-icon" data-bs-toggle="tooltip" title="Configuration" onclick="showConfigModal()">
                     <i class="fas fa-cog"></i>
                 </button>
             </div>
@@ -109,10 +82,7 @@
             <div class="log-panel">
                 <div class="panel-header">
                     <span><i class="fas fa-list-alt me-2"></i>Activity Log</span>
-                    <button 
-                        class="btn-clear-log" 
-                        data-bs-toggle="tooltip" 
-                        title="Clear Activity Log"
+                    <button class="btn-clear-log" data-bs-toggle="tooltip" title="Clear Activity Log"
                         onclick="clearActivityLog()">
                         <i class="fas fa-trash-alt"></i>
                     </button>
@@ -127,8 +97,18 @@
 
             <!-- Right Pane: Transcription (70%) -->
             <div class="transcript-panel">
-                <div class="panel-header">
-                    <span><i class="fas fa-file-alt me-2"></i>Transcription</span>
+                <div class="panel-header transcription-header">
+                    <div class="header-title-group">
+                        <span class="panel-title"><i class="fas fa-file-alt me-2"></i>Transcription</span>
+                        <button class="btn btn-icon-header" id="copyBtn" data-bs-toggle="tooltip"
+                            title="Copy Transcript" onclick="copyTranscript()">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                    <button class="btn btn-icon-header btn-delete" id="clearBtn" data-bs-toggle="tooltip"
+                        title="Clear Transcript" onclick="clearTranscript()">
+                        <i class="fas fa-trash"></i>
+                    </button>
                 </div>
                 <div class="panel-content transcript-content" id="transcriptArea" contenteditable="true"></div>
             </div>
@@ -146,23 +126,20 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         <label for="endpointUrl" class="form-label">Endpoint URL</label>
-                        <input type="url" class="form-control" id="endpointUrl" 
+                        <input type="url" class="form-control" id="endpointUrl"
                             value="https://openrouter.ai/api/v1/chat/completions">
                     </div>
                     <div class="mb-3">
                         <label for="apiKey" class="form-label">API Key</label>
-                        <input type="password" class="form-control" id="apiKey" 
-                            placeholder="Enter your API key">
+                        <input type="password" class="form-control" id="apiKey" placeholder="Enter your API key">
                     </div>
                     <div class="mb-3">
                         <label for="speechModel" class="form-label">Speech Model</label>
-                        <input type="text" class="form-control" id="speechModel" 
-                            value="google/gemini-2.5-flash">
+                        <input type="text" class="form-control" id="speechModel" value="google/gemini-2.5-flash">
                     </div>
                     <div class="mb-3">
                         <label for="rephraseModel" class="form-label">Rephrase Model</label>
-                        <input type="text" class="form-control" id="rephraseModel" 
-                            value="openai/gpt-4o-mini">
+                        <input type="text" class="form-control" id="rephraseModel" value="openai/gpt-4o-mini">
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -185,7 +162,8 @@
                     <!-- Hidden raw markdown for copying -->
                     <div id="rephraseRawContent" style="display: none;"></div>
                     <!-- Visible rendered markdown -->
-                    <div class="border rounded p-3 bg-light" style="min-height: 200px; max-height: 400px; overflow-y: auto;" id="rephraseContent">
+                    <div class="border rounded p-3 bg-light"
+                        style="min-height: 200px; max-height: 400px; overflow-y: auto;" id="rephraseContent">
                         <div class="text-muted fst-italic">No rephrased content yet...</div>
                     </div>
                 </div>
@@ -204,14 +182,15 @@
 
     <!-- Bootstrap 5.3.8 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
-    
+
     <!-- Marked.js for Markdown parsing -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    
+
     <!-- Silero VAD Dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@latest/dist/bundle.min.js"></script>
-    
+
     <script src="script.js"></script>
 </body>
+
 </html>
