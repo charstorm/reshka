@@ -7,10 +7,10 @@
     --bg-surface: #1a2233;
     --text-primary: #e0e6ed;
     --text-secondary: #8899aa;
-    --status-ready: #6c757d;
-    --status-active: #28a745;
-    --status-speaking: #ff9800;
-    --status-processing: #007bff;
+    --status-ready: #3d5a6e;
+    --status-active: #00e5ff;
+    --status-speaking: #ffab40;
+    --status-processing: #7c4dff;
 }
 
 * {
@@ -131,7 +131,7 @@ body {
 
 .status-dot.speaking {
     background-color: var(--status-speaking);
-    box-shadow: 0 0 10px var(--status-speaking), 0 0 20px rgba(255, 152, 0, 0.3);
+    box-shadow: 0 0 10px var(--status-speaking), 0 0 20px rgba(255, 171, 64, 0.3);
 }
 
 .status-dot.processing {
@@ -144,13 +144,13 @@ body {
     100% {
         opacity: 1;
         transform: scale(1);
-        box-shadow: 0 0 4px rgba(40, 167, 69, 0.4);
+        box-shadow: 0 0 4px rgba(0, 229, 255, 0.4);
     }
 
     50% {
         opacity: 0.7;
         transform: scale(1.2);
-        box-shadow: 0 0 12px rgba(40, 167, 69, 0.7);
+        box-shadow: 0 0 12px rgba(0, 229, 255, 0.7);
     }
 }
 
@@ -628,10 +628,3 @@ body {
     background: rgba(0, 229, 255, 0.3);
 }
 
-/* Toast Container */
-.toast-container {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    z-index: 1050;
-}

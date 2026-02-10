@@ -926,30 +926,5 @@ function checkForVoiceCommands(text) {
 }
 
 function showToast(message, type = 'success') {
-    const toastHtml = `
-        <div class="toast align-items-center text-white bg-${type === 'error' ? 'danger' : 'success'} border-0" role="alert">
-            <div class="d-flex">
-                <div class="toast-body">${message}</div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-            </div>
-        </div>
-    `;
-
-    let toastContainer = document.querySelector('.toast-container');
-    if (!toastContainer) {
-        toastContainer = document.createElement('div');
-        toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
-        document.body.appendChild(toastContainer);
-    }
-
-    const toastElement = document.createElement('div');
-    toastElement.innerHTML = toastHtml;
-    toastContainer.appendChild(toastElement.firstElementChild);
-
-    const toast = new bootstrap.Toast(toastContainer.lastElementChild, { delay: 3000 });
-    toast.show();
-
-    toastContainer.lastElementChild.addEventListener('hidden.bs.toast', () => {
-        toastContainer.lastElementChild.remove();
-    });
+    addLog(message, type === 'error' ? 'error' : 'success');
 }
