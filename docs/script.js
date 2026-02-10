@@ -2,6 +2,10 @@ let myvad = null;
 let isTranscribing = false;
 let lastTranscriptTimestamp = null;
 
+const FADE_DURATION = 0.05;
+const audioCache = {};
+let audioContext = null;
+
 const config = {
     endpoint: 'https://openrouter.ai/api/v1/chat/completions',
     apiKey: '',
@@ -24,11 +28,18 @@ const VAD_CONFIG = {
 const configModal = new bootstrap.Modal(document.getElementById('configModal'));
 const rephraseModal = new bootstrap.Modal(document.getElementById('rephraseModal'));
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     initTooltips();
     loadConfig();
     loadTranscript();
     loadRephraseResult();
+
+    const toggleBtn = document.getElementById('toggleBtn');
+    toggleBtn.disabled = true;
+    addLog('Generating audio feedback...', 'info');
+    await generateAllSounds();
+    addLog('Setup complete', 'success');
+    toggleBtn.disabled = false;
 });
 
 function initTooltips() {
@@ -218,6 +229,179 @@ async function blobToBase64(blob) {
     });
 }
 
+function initAudioContext() {
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    return audioContext;
+}
+
+function createWavBlob(audioBuffer) {
+    const sampleRate = audioBuffer.sampleRate;
+    const length = audioBuffer.length;
+    const buffer = new ArrayBuffer(44 + length * 2);
+    const view = new DataView(buffer);
+    const channelData = audioBuffer.getChannelData(0);
+
+    const writeStr = (offset, string) => {
+        for (let i = 0; i < string.length; i++) {
+            view.setUint8(offset + i, string.charCodeAt(i));
+        }
+    };
+
+    writeStr(0, 'RIFF');
+    view.setUint32(4, 36 + length * 2, true);
+    writeStr(8, 'WAVE');
+    writeStr(12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    writeStr(36, 'data');
+    view.setUint32(40, length * 2, true);
+
+    let offset = 44;
+    for (let i = 0; i < length; i++) {
+        const sample = Math.max(-1, Math.min(1, channelData[i]));
+        view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+        offset += 2;
+    }
+
+    return new Blob([buffer], { type: 'audio/wav' });
+}
+
+function generateVadUp(duration, fadeOut = FADE_DURATION) {
+    const ctx = initAudioContext();
+    const sampleRate = ctx.sampleRate;
+    const numSamples = Math.floor(sampleRate * duration);
+    const audioBuffer = ctx.createBuffer(1, numSamples, sampleRate);
+    const channelData = audioBuffer.getChannelData(0);
+    const fadeOutSamples = Math.floor(sampleRate * fadeOut);
+
+    for (let i = 0; i < numSamples; i++) {
+        const t = i / sampleRate;
+        let amplitude = 0.05;
+        if (i > numSamples - fadeOutSamples) {
+            amplitude *= (numSamples - i) / fadeOutSamples;
+        }
+        channelData[i] = amplitude * Math.sin(2 * Math.PI * 700 * t);
+    }
+
+    return audioBuffer;
+}
+
+function generateVadDown(duration, fadeOut = FADE_DURATION) {
+    const ctx = initAudioContext();
+    const sampleRate = ctx.sampleRate;
+    const numSamples = Math.floor(sampleRate * duration);
+    const audioBuffer = ctx.createBuffer(1, numSamples, sampleRate);
+    const channelData = audioBuffer.getChannelData(0);
+    const fadeOutSamples = Math.floor(sampleRate * fadeOut);
+
+    for (let i = 0; i < numSamples; i++) {
+        const t = i / sampleRate;
+        let amplitude = 0.3;
+        if (i > numSamples - fadeOutSamples) {
+            amplitude *= (numSamples - i) / fadeOutSamples;
+        }
+        channelData[i] = amplitude * Math.sin(2 * Math.PI * 500 * t);
+    }
+
+    return audioBuffer;
+}
+
+function generateChime(duration, fadeOut = FADE_DURATION) {
+    const ctx = initAudioContext();
+    const sampleRate = ctx.sampleRate;
+    const numSamples = Math.floor(sampleRate * duration);
+    const audioBuffer = ctx.createBuffer(1, numSamples, sampleRate);
+    const channelData = audioBuffer.getChannelData(0);
+    const fadeOutSamples = Math.floor(sampleRate * fadeOut);
+    const halfDuration = duration / 2;
+
+    for (let i = 0; i < numSamples; i++) {
+        const t = i / sampleRate;
+        const frequency = t < halfDuration ? 600 : 800;
+        let amplitude = 0.3;
+        if (i > numSamples - fadeOutSamples) {
+            amplitude *= (numSamples - i) / fadeOutSamples;
+        }
+        channelData[i] = amplitude * Math.sin(2 * Math.PI * frequency * t);
+    }
+
+    return audioBuffer;
+}
+
+function generateError(duration, fadeOut = FADE_DURATION) {
+    const ctx = initAudioContext();
+    const sampleRate = ctx.sampleRate;
+    const numSamples = Math.floor(sampleRate * duration);
+    const audioBuffer = ctx.createBuffer(1, numSamples, sampleRate);
+    const channelData = audioBuffer.getChannelData(0);
+    const fadeOutSamples = Math.floor(sampleRate * fadeOut);
+    const beepDuration = duration / 3;
+
+    for (let i = 0; i < numSamples; i++) {
+        const t = i / sampleRate;
+        const segment = Math.floor(t / beepDuration);
+        let amplitude = segment < 3 ? 0.5 : 0;
+        const segmentT = t % beepDuration;
+        if (segmentT > beepDuration * 0.4) {
+            amplitude = 0;
+        }
+        if (i > numSamples - fadeOutSamples) {
+            amplitude *= (numSamples - i) / fadeOutSamples;
+        }
+        channelData[i] = amplitude * Math.sin(2 * Math.PI * 400 * t);
+    }
+
+    return audioBuffer;
+}
+
+function generateMisfire(duration, fadeOut = FADE_DURATION) {
+    const ctx = initAudioContext();
+    const sampleRate = ctx.sampleRate;
+    const numSamples = Math.floor(sampleRate * duration);
+    const audioBuffer = ctx.createBuffer(1, numSamples, sampleRate);
+    const channelData = audioBuffer.getChannelData(0);
+    const fadeOutSamples = Math.floor(sampleRate * fadeOut);
+
+    for (let i = 0; i < numSamples; i++) {
+        const t = i / sampleRate;
+        const frequency = 500 - 200 * (t / duration);
+        let amplitude = 0.2;
+        if (i > numSamples - fadeOutSamples) {
+            amplitude *= (numSamples - i) / fadeOutSamples;
+        }
+        channelData[i] = amplitude * Math.sin(2 * Math.PI * frequency * t);
+    }
+
+    return audioBuffer;
+}
+
+async function generateAllSounds() {
+    initAudioContext();
+    audioCache.vadUp = createWavBlob(generateVadUp(0.2));
+    audioCache.vadDown = createWavBlob(generateVadDown(0.2));
+    audioCache.transcriptionArrived = createWavBlob(generateChime(0.2));
+    audioCache.error = createWavBlob(generateError(0.2));
+    audioCache.misfire = createWavBlob(generateMisfire(0.15));
+}
+
+function playSound(soundName, onEnded = null) {
+    const blob = audioCache[soundName];
+    if (!blob) return;
+
+    const audio = new Audio(URL.createObjectURL(blob));
+    if (onEnded) {
+        audio.onended = onEnded;
+    }
+    audio.play();
+}
+
 async function toggleTranscription() {
     if (isTranscribing) {
         await stopTranscription();
@@ -244,9 +428,11 @@ async function startTranscription() {
             onSpeechStart: () => {
                 updateStatus('speaking', 'Speaking detected');
                 addLog('Speech started', 'speech-start');
+                playSound('vadUp');
             },
 
             onSpeechEnd: async (audio) => {
+                playSound('vadDown');
                 updateStatus('processing', 'Processing...');
                 const durationMs = (audio.length / 16000 * 1000).toFixed(0);
                 addLog(`Speech ended (${durationMs}ms)`, 'speech-end');
@@ -260,6 +446,7 @@ async function startTranscription() {
 
             onVADMisfire: () => {
                 addLog('VAD misfire detected', 'warning');
+                playSound('misfire');
             },
 
             positiveSpeechThreshold: VAD_CONFIG.positiveSpeechThreshold,
@@ -331,6 +518,7 @@ async function processSpeechAudio(audio) {
         const base64Audio = await blobToBase64(wavBlob);
 
         addLog('Sending to API...', 'api-call');
+        const apiStartTime = performance.now();
 
         const requestBody = {
             model: config.speechModel,
@@ -383,10 +571,13 @@ async function processSpeechAudio(audio) {
             .replace(/```\n?/g, '')
             .trim();
 
-        addLog(`Transcription received (${cleanedTranscription.length} chars)`, 'success');
+        playSound('transcriptionArrived');
+        const elapsed = ((performance.now() - apiStartTime) / 1000).toFixed(1);
+        addLog(`Transcription received (${cleanedTranscription.length} chars, ${elapsed}s)`, 'success');
         addTranscriptEntry(cleanedTranscription);
 
     } catch (error) {
+        playSound('error');
         console.error('Error processing speech:', error);
         addLog(`Transcription error: ${error.message}`, 'error');
         showToast('Transcription failed: ' + error.message, 'error');
