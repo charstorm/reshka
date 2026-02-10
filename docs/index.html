@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="dark">
 
 <head>
     <meta charset="UTF-8">
@@ -33,6 +33,11 @@
 
     <!-- Font Awesome 6.5.1 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- Google Fonts: Orbitron, Share Tech Mono, Rajdhani -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700&family=Rajdhani:wght@400;500;600&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 
     <link rel="stylesheet" href="style.css">
 </head>
@@ -88,10 +93,6 @@
                     </button>
                 </div>
                 <div class="panel-content log-content" id="logArea">
-                    <div class="log-entry">
-                        <div class="log-timestamp">-- System Ready --</div>
-                        Click "Start" to begin transcription.
-                    </div>
                 </div>
             </div>
 
@@ -162,8 +163,8 @@
                     <!-- Hidden raw markdown for copying -->
                     <div id="rephraseRawContent" style="display: none;"></div>
                     <!-- Visible rendered markdown -->
-                    <div class="border rounded p-3 bg-light"
-                        style="min-height: 200px; max-height: 400px; overflow-y: auto;" id="rephraseContent">
+                    <div class="border rounded p-3"
+                        style="min-height: 200px; max-height: 400px; overflow-y: auto; background-color: #1a2233;" id="rephraseContent">
                         <div class="text-muted fst-italic">No rephrased content yet...</div>
                     </div>
                 </div>
