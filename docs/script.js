@@ -10,13 +10,35 @@ const config = {
     endpoint: 'https://openrouter.ai/api/v1/chat/completions',
     apiKey: '',
     speechModel: 'google/gemini-2.5-flash',
-    rephraseModel: 'openai/gpt-4o-mini'
+    rephraseModel: 'google/gemini-2.5-flash',
+    questionModel: 'google/gemini-2.5-flash'
 };
 
-const TRANSCRIPTION_SYSTEM_PROMPT = `You are a speech transcription system named Reshka.
+const TRANSCRIPTION_SYSTEM_PROMPT = `
+You are a speech transcription system named Reshka.
 Output ONLY the verbatim transcription of the provided audio.
 Do not respond conversationally, do not answer questions, do not add commentary.
-Only transcribe what is spoken.`;
+Only transcribe what is spoken.
+Known voice command: "generate questions". Try to detect it accurately.
+`;
+
+const REPHRASE_PROMPT = `
+Without losing information, rephrase the above in a structured manner.
+Assume that the above is transcription coming from ASR. Expect errors due to that.
+Taking that into account, rephrase the above. Do not discard information.
+Give a clear, structured output.
+`
+
+const QUESTION_GENERATION_PROMPT = `Based on the transcription provided, generate up to 4 insightful, relevant questions that probe deeper into the topics discussed, clarify ambiguous points, or explore implications.
+
+Rules:
+- Generate between 1 and 4 questions (fewer if content is brief)
+- Each question must be concise (one sentence)
+- Output ONLY the questions, one per line, numbered 1-4
+- No preamble or commentary
+- If the transcription is too short or meaningless, output exactly: NO_QUESTIONS`;
+
+const QUESTION_COMMAND_PATTERN = /^(?:please\s+)?generate\s+questions(?:[,.]?\s*please)?[.!]?$/i;
 
 const VAD_CONFIG = {
     positiveSpeechThreshold: 0.5,
@@ -33,6 +55,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadConfig();
     loadTranscript();
     loadRephraseResult();
+    loadQuestions();
 
     const toggleBtn = document.getElementById('toggleBtn');
     toggleBtn.disabled = true;
@@ -57,12 +80,14 @@ function loadConfig() {
         config.apiKey = parsed.apiKey || config.apiKey;
         config.speechModel = parsed.speechModel || config.speechModel;
         config.rephraseModel = parsed.rephraseModel || config.rephraseModel;
+        config.questionModel = parsed.questionModel || config.questionModel;
     }
 
     document.getElementById('endpointUrl').value = config.endpoint;
     document.getElementById('apiKey').value = config.apiKey;
     document.getElementById('speechModel').value = config.speechModel;
     document.getElementById('rephraseModel').value = config.rephraseModel;
+    document.getElementById('questionModel').value = config.questionModel;
 }
 
 async function validatePrerequisites() {
@@ -157,7 +182,6 @@ async function checkAudioPermissions() {
 function clearActivityLog() {
     const logArea = document.getElementById('logArea');
     logArea.innerHTML = '';
-    addLog('Activity log cleared', 'info');
 }
 
 function saveConfig() {
@@ -165,6 +189,7 @@ function saveConfig() {
     config.apiKey = document.getElementById('apiKey').value;
     config.speechModel = document.getElementById('speechModel').value;
     config.rephraseModel = document.getElementById('rephraseModel').value;
+    config.questionModel = document.getElementById('questionModel').value;
 
     localStorage.setItem('reshka:appConfig', JSON.stringify(config));
     configModal.hide();
@@ -600,6 +625,11 @@ function addLog(message, type = 'info') {
 }
 
 function addTranscriptEntry(text) {
+    // Check for voice commands first — if matched, don't add to transcript
+    if (checkForVoiceCommands(text)) {
+        return;
+    }
+
     const transcriptArea = document.getElementById('transcriptArea');
     const now = new Date();
     const currentTimestamp = now.getTime();
@@ -716,7 +746,7 @@ async function rephraseTranscript() {
                 messages: [
                     {
                         role: 'user',
-                        content: `Rephrase this in a structured manner:\n\n${text}`
+                        content: `${text}\n---\n${REPHRASE_PROMPT}`
                     }
                 ]
             })
@@ -777,6 +807,122 @@ function saveRephraseResult(content) {
     localStorage.setItem('reshka:rephraseResult', content);
     document.getElementById('rephraseRawContent').textContent = content;
     document.getElementById('rephraseContent').innerHTML = marked.parse(content);
+}
+
+async function generateQuestions() {
+    const transcriptArea = document.getElementById('transcriptArea');
+    const text = transcriptArea.textContent.trim();
+
+    if (text === '') {
+        showToast('No transcript to generate questions from', 'error');
+        return;
+    }
+
+    if (!config.apiKey) {
+        showToast('Please configure your API key first', 'error');
+        configModal.show();
+        return;
+    }
+
+    addLog('Generating questions...', 'api-call');
+    updateStatus('processing', 'Generating questions...');
+
+    try {
+        const response = await fetch(config.endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${config.apiKey}`
+            },
+            body: JSON.stringify({
+                model: config.questionModel,
+                temperature: 0.7,
+                messages: [
+                    {
+                        role: 'system',
+                        content: QUESTION_GENERATION_PROMPT
+                    },
+                    {
+                        role: 'user',
+                        content: text
+                    }
+                ]
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        const rawText = data.choices?.[0]?.message?.content ||
+            data.content?.[0]?.text ||
+            'NO_QUESTIONS';
+
+        if (rawText.trim() === 'NO_QUESTIONS') {
+            showToast('Transcript too brief to generate questions', 'error');
+            addLog('Transcript too brief for questions', 'info');
+        } else {
+            displayQuestions(rawText);
+            saveQuestions(rawText);
+            playSound('transcriptionArrived');
+            addLog('Questions generated', 'success');
+            showToast('Questions generated');
+        }
+
+        updateStatus(isTranscribing ? 'active' : 'ready', isTranscribing ? 'Listening...' : 'Ready');
+    } catch (error) {
+        playSound('error');
+        console.error('Error generating questions:', error);
+        addLog(`Question generation error: ${error.message}`, 'error');
+        showToast('Failed to generate questions: ' + error.message, 'error');
+        updateStatus(isTranscribing ? 'active' : 'ready', isTranscribing ? 'Listening...' : 'Ready');
+    }
+}
+
+function displayQuestions(rawText) {
+    const questionsArea = document.getElementById('questionsArea');
+    questionsArea.innerHTML = '';
+
+    const lines = rawText.trim().split('\n').filter(line => line.trim());
+    lines.forEach(line => {
+        const match = line.match(/^(\d+)[.)]\s*(.*)/);
+        const item = document.createElement('div');
+        item.className = 'question-item';
+        if (match) {
+            item.innerHTML = `<span class="question-number">Q${match[1]}</span>${match[2]}`;
+        } else {
+            item.textContent = line.trim();
+        }
+        questionsArea.appendChild(item);
+    });
+}
+
+function clearQuestions() {
+    const questionsArea = document.getElementById('questionsArea');
+    questionsArea.innerHTML = '<div class="text-muted fst-italic" style="font-size: 0.85rem;">No questions generated yet. Click ⚡ or say "generate questions".</div>';
+    localStorage.removeItem('reshka:questions');
+    addLog('Questions cleared', 'info');
+}
+
+function saveQuestions(content) {
+    localStorage.setItem('reshka:questions', content);
+}
+
+function loadQuestions() {
+    const saved = localStorage.getItem('reshka:questions');
+    if (saved) {
+        displayQuestions(saved);
+    }
+}
+
+function checkForVoiceCommands(text) {
+    if (QUESTION_COMMAND_PATTERN.test(text.trim())) {
+        addLog('Voice command detected: generate questions', 'info');
+        generateQuestions();
+        return true;
+    }
+    return false;
 }
 
 function showToast(message, type = 'success') {

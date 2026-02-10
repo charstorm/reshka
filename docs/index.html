@@ -83,16 +83,37 @@
 
         <!-- Main Content Area -->
         <div class="content-area">
-            <!-- Left Pane: Activity Log (30%) -->
-            <div class="log-panel">
-                <div class="panel-header">
-                    <span><i class="fas fa-list-alt me-2"></i>Activity Log</span>
-                    <button class="btn-clear-log" data-bs-toggle="tooltip" title="Clear Activity Log"
-                        onclick="clearActivityLog()">
-                        <i class="fas fa-trash-alt"></i>
-                    </button>
+            <!-- Left Column: Activity Log + Questions -->
+            <div class="left-column">
+                <div class="log-panel">
+                    <div class="panel-header">
+                        <span><i class="fas fa-list-alt me-2"></i>Activity Log</span>
+                        <button class="btn-clear-log" data-bs-toggle="tooltip" title="Clear Activity Log"
+                            onclick="clearActivityLog()">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                    <div class="panel-content log-content" id="logArea">
+                    </div>
                 </div>
-                <div class="panel-content log-content" id="logArea">
+
+                <div class="questions-panel">
+                    <div class="panel-header">
+                        <span><i class="fas fa-question-circle me-2"></i>Questions <span style="font-family: 'Rajdhani', sans-serif; font-weight: 500; font-size: 0.75rem; color: var(--accent-dim); letter-spacing: 0;">(say "generate questions")</span></span>
+                        <div class="questions-header-actions">
+                            <button class="btn-clear-log" title="Generate Questions" onclick="generateQuestions()">
+                                <i class="fas fa-bolt"></i>
+                            </button>
+                            <button class="btn-clear-log" title="Clear Questions" onclick="clearQuestions()">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="panel-content questions-content" id="questionsArea">
+                        <div class="text-muted fst-italic" style="font-size: 0.85rem;">
+                            No questions generated yet. Click ⚡ or say "generate questions".
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -141,6 +162,10 @@
                     <div class="mb-3">
                         <label for="rephraseModel" class="form-label">Rephrase Model</label>
                         <input type="text" class="form-control" id="rephraseModel" value="openai/gpt-4o-mini">
+                    </div>
+                    <div class="mb-3">
+                        <label for="questionModel" class="form-label">Question Model</label>
+                        <input type="text" class="form-control" id="questionModel" value="google/gemini-2.5-flash">
                     </div>
                 </div>
                 <div class="modal-footer">
