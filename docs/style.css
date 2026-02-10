@@ -236,7 +236,7 @@ body {
 }
 
 .questions-content {
-    font-family: 'Rajdhani', sans-serif;
+    font-family: 'Exo 2', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     font-size: 0.95rem;
     line-height: 1.5;
 }
@@ -247,7 +247,7 @@ body {
     background: rgba(0, 229, 255, 0.05);
     border: 1px solid rgba(0, 229, 255, 0.1);
     border-radius: 6px;
-    color: var(--text-primary);
+    color: #b0b8c4;
     animation: fade-in-up 0.3s ease-out;
 }
 
@@ -424,12 +424,12 @@ body {
 
 /* Transcript Panel */
 .transcript-content {
-    font-family: 'Rajdhani', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Exo 2', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     font-size: 1.05rem;
     line-height: 1.6;
     white-space: pre-wrap;
     word-wrap: break-word;
-    color: var(--text-primary);
+    color: #b0b8c4;
 }
 
 .transcript-content:focus {
