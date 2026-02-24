@@ -610,6 +610,199 @@ body {
     box-shadow: 0 0 8px rgba(0, 229, 255, 0.15);
 }
 
+/* Nav Links */
+.nav-links {
+    display: flex;
+    gap: 4px;
+}
+
+.nav-link-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background-color: rgba(0, 229, 255, 0.08);
+    color: var(--text-secondary);
+    border: 1px solid rgba(0, 229, 255, 0.15);
+    border-radius: 4px;
+    font-size: 0.9rem;
+    text-decoration: none;
+    transition: all 0.3s;
+}
+
+.nav-link-btn:hover {
+    background-color: rgba(0, 229, 255, 0.15);
+    color: var(--accent);
+    border-color: var(--accent);
+    box-shadow: 0 0 8px rgba(0, 229, 255, 0.15);
+}
+
+.nav-link-btn.active {
+    background-color: rgba(0, 229, 255, 0.15);
+    color: var(--accent);
+    border-color: var(--accent);
+    box-shadow: 0 0 8px rgba(0, 229, 255, 0.15);
+}
+
+/* Form Page Layout */
+.form-page-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 32px 20px 64px;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+}
+
+.form-page-card {
+    width: 100%;
+    max-width: 720px;
+}
+
+.form-page-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--accent-dim);
+    letter-spacing: 1px;
+    margin-bottom: 28px;
+}
+
+.form-page-content .form-label {
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin-bottom: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.form-hint {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 500;
+    font-size: 0.83rem;
+    color: #6a8a9e;
+    letter-spacing: 0;
+}
+
+.required-hint {
+    color: #4db8cc;
+}
+
+.form-page-content .form-control {
+    background-color: var(--bg-surface);
+    border: 1px solid rgba(0, 229, 255, 0.2);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.form-page-content .form-control:focus {
+    background-color: var(--bg-surface);
+    border-color: var(--accent);
+    box-shadow: 0 0 8px rgba(0, 229, 255, 0.15);
+    color: var(--text-primary);
+}
+
+.form-page-content .form-control::placeholder {
+    color: var(--text-secondary);
+    opacity: 0.6;
+}
+
+.font-mono {
+    font-family: 'Share Tech Mono', 'Courier New', monospace !important;
+    font-size: 0.85rem !important;
+    line-height: 1.5;
+}
+
+.field-error {
+    color: #ff5252;
+    font-size: 0.82rem;
+    margin-top: 6px;
+    padding: 6px 10px;
+    background: rgba(255, 82, 82, 0.08);
+    border: 1px solid rgba(255, 82, 82, 0.2);
+    border-radius: 4px;
+}
+
+.field-hint {
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    margin-top: 6px;
+    padding: 6px 10px;
+    background: rgba(0, 229, 255, 0.04);
+    border: 1px solid rgba(0, 229, 255, 0.1);
+    border-radius: 4px;
+}
+
+.form-page-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+}
+
+.btn-primary-page {
+    background-color: rgba(0, 229, 255, 0.15);
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 8px 20px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.btn-primary-page:hover {
+    background-color: rgba(0, 229, 255, 0.25);
+    box-shadow: 0 0 12px rgba(0, 229, 255, 0.2);
+}
+
+.btn-primary-page:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.btn-secondary-page {
+    background-color: var(--bg-surface);
+    color: var(--text-secondary);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 8px 20px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.3s;
+    display: inline-flex;
+    align-items: center;
+}
+
+.btn-secondary-page:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+    color: var(--text-primary);
+}
+
+.save-status {
+    margin-top: 12px;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+}
+
+.save-status-success {
+    color: #69f0ae;
+    background: rgba(105, 240, 174, 0.08);
+    border: 1px solid rgba(105, 240, 174, 0.2);
+}
+
+.save-status-error {
+    color: #ff5252;
+    background: rgba(255, 82, 82, 0.08);
+    border: 1px solid rgba(255, 82, 82, 0.2);
+}
+
 /* Scrollbar Styling */
 .panel-content::-webkit-scrollbar {
     width: 6px;

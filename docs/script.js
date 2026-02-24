@@ -14,29 +14,56 @@ const config = {
     questionModel: 'google/gemini-2.5-flash'
 };
 
-const TRANSCRIPTION_SYSTEM_PROMPT = `
-You are a speech transcription system named Reshka.
-Output ONLY the verbatim transcription of the provided audio.
-Do not respond conversationally, do not answer questions, do not add commentary.
-Only transcribe what is spoken.
-Known voice command: "generate questions". Try to detect it accurately.
-`;
+const TRANSCRIPTION_SYSTEM_PROMPT = `You are a speech transcription system named Reshka.`;
 
-const REPHRASE_PROMPT = `
+const DEFAULT_TRANSCRIPTION_USER_PROMPT = `
+Output ONLY the verbatim transcription of this audio.
+Do not respond conversationally, do not answer questions, do not add commentary.
+
+Known commands, phrases, and jargons:
+{known_jargons}
+Try to detect these accurately.
+
+Only transcribe what is spoken.
+`
+
+const DEFAULT_REPHRASE_PROMPT = `
 Without losing information, rephrase the above in a structured manner.
 Assume that the above is transcription coming from ASR. Expect errors due to that.
 Taking that into account, rephrase the above. Do not discard information.
 Give a clear, structured output.
+
+Known jargon/context:
+{known_jargons}
 `
 
-const QUESTION_GENERATION_PROMPT = `Based on the transcription provided, generate up to 4 insightful, relevant questions that probe deeper into the topics discussed, clarify ambiguous points, or explore implications.
+const DEFAULT_QUESTION_GENERATION_PROMPT = `Based on the transcription provided, generate up to 4 insightful, relevant questions that probe deeper into the topics discussed, clarify ambiguous points, or explore implications.
 
 Rules:
 - Generate between 1 and 4 questions (fewer if content is brief)
 - Each question must be concise (one sentence)
 - Output ONLY the questions, one per line, numbered 1-4
 - No preamble or commentary
-- If the transcription is too short or meaningless, output exactly: NO_QUESTIONS`;
+- If the transcription is too short or meaningless, output exactly: NO_QUESTIONS
+
+Known jargon/context:
+{known_jargons}`;
+
+const DEFAULT_JARGONS = `generate questions`;
+
+// Active prompt config (loaded from localStorage or defaults)
+let promptConfig = {
+    systemPrompt: 'You are a speech transcription system named Reshka.',
+    userPrompt: DEFAULT_TRANSCRIPTION_USER_PROMPT,
+    rephrasePrompt: DEFAULT_REPHRASE_PROMPT,
+    questionPrompt: DEFAULT_QUESTION_GENERATION_PROMPT,
+    jargons: DEFAULT_JARGONS
+};
+
+function injectJargons(prompt, jargons) {
+    const lines = jargons.split('\n').filter(l => l.trim()).map(l => `- "${l.trim()}"`).join('\n');
+    return prompt.replace('{known_jargons}', lines || '(none)');
+}
 
 const QUESTION_COMMAND_PATTERN = /^(?:please\s+)?generate\s+questions(?:[,.]?\s*please)?[.!]?$/i;
 
@@ -47,12 +74,12 @@ const VAD_CONFIG = {
     minSpeechFrames: 15
 };
 
-const configModal = new bootstrap.Modal(document.getElementById('configModal'));
 const rephraseModal = new bootstrap.Modal(document.getElementById('rephraseModal'));
 
 document.addEventListener('DOMContentLoaded', async () => {
     initTooltips();
     loadConfig();
+    loadPromptConfig();
     loadTranscript();
     loadRephraseResult();
     loadQuestions();
@@ -82,12 +109,18 @@ function loadConfig() {
         config.rephraseModel = parsed.rephraseModel || config.rephraseModel;
         config.questionModel = parsed.questionModel || config.questionModel;
     }
+}
 
-    document.getElementById('endpointUrl').value = config.endpoint;
-    document.getElementById('apiKey').value = config.apiKey;
-    document.getElementById('speechModel').value = config.speechModel;
-    document.getElementById('rephraseModel').value = config.rephraseModel;
-    document.getElementById('questionModel').value = config.questionModel;
+function loadPromptConfig() {
+    const saved = localStorage.getItem('reshka:promptConfig');
+    if (saved) {
+        const parsed = JSON.parse(saved);
+        promptConfig.systemPrompt = parsed.systemPrompt || promptConfig.systemPrompt;
+        promptConfig.userPrompt = parsed.userPrompt || promptConfig.userPrompt;
+        promptConfig.rephrasePrompt = parsed.rephrasePrompt || promptConfig.rephrasePrompt;
+        promptConfig.questionPrompt = parsed.questionPrompt || promptConfig.questionPrompt;
+        promptConfig.jargons = parsed.jargons !== undefined ? parsed.jargons : promptConfig.jargons;
+    }
 }
 
 async function validatePrerequisites() {
@@ -115,9 +148,9 @@ async function checkApiKey() {
     addLog('Checking API key configuration...', 'info');
 
     if (!config.apiKey) {
-        addLog('ERROR: API key not configured', 'error');
+        addLog('ERROR: API key not configured. Redirecting to config...', 'error');
         showToast('Please configure your API key first', 'error');
-        configModal.show();
+        setTimeout(() => { window.location.href = 'config.html'; }, 1500);
         return false;
     }
 
@@ -134,7 +167,7 @@ async function checkApiKey() {
         if (!response.ok) {
             addLog(`ERROR: API key verification failed (${response.status})`, 'error');
             showToast('Invalid API key. Please check configuration.', 'error');
-            configModal.show();
+            setTimeout(() => { window.location.href = 'config.html'; }, 1500);
             return false;
         }
 
@@ -184,22 +217,6 @@ function clearActivityLog() {
     logArea.innerHTML = '';
 }
 
-function saveConfig() {
-    config.endpoint = document.getElementById('endpointUrl').value;
-    config.apiKey = document.getElementById('apiKey').value;
-    config.speechModel = document.getElementById('speechModel').value;
-    config.rephraseModel = document.getElementById('rephraseModel').value;
-    config.questionModel = document.getElementById('questionModel').value;
-
-    localStorage.setItem('reshka:appConfig', JSON.stringify(config));
-    configModal.hide();
-    addLog('Configuration saved', 'success');
-    showToast('Configuration saved successfully');
-}
-
-function showConfigModal() {
-    configModal.show();
-}
 
 function float32ToWav(float32Array, sampleRate = 16000) {
     const int16Array = new Int16Array(float32Array.length);
@@ -441,7 +458,7 @@ async function toggleTranscription() {
 async function startTranscription() {
     if (!config.apiKey) {
         showToast('Please configure your API key first', 'error');
-        configModal.show();
+        setTimeout(() => { window.location.href = 'config.html'; }, 1500);
         return;
     }
 
@@ -545,13 +562,14 @@ async function processSpeechAudio(audio) {
         addLog('Sending to API...', 'api-call');
         const apiStartTime = performance.now();
 
+        const activeUserPrompt = injectJargons(promptConfig.userPrompt, promptConfig.jargons);
         const requestBody = {
             model: config.speechModel,
             temperature: 0.7,
             messages: [
                 {
                     role: 'system',
-                    content: TRANSCRIPTION_SYSTEM_PROMPT
+                    content: promptConfig.systemPrompt
                 },
                 {
                     role: 'user',
@@ -565,7 +583,7 @@ async function processSpeechAudio(audio) {
                         },
                         {
                             type: 'text',
-                            text: 'Transcribe this audio.'
+                            text: activeUserPrompt
                         }
                     ]
                 }
@@ -726,7 +744,7 @@ async function rephraseTranscript() {
 
     if (!config.apiKey) {
         showToast('Please configure your API key first', 'error');
-        configModal.show();
+        setTimeout(() => { window.location.href = 'config.html'; }, 1500);
         return;
     }
 
@@ -746,7 +764,7 @@ async function rephraseTranscript() {
                 messages: [
                     {
                         role: 'user',
-                        content: `${text}\n---\n${REPHRASE_PROMPT}`
+                        content: `${text}\n---\n${injectJargons(promptConfig.rephrasePrompt, promptConfig.jargons)}`
                     }
                 ]
             })
@@ -820,7 +838,7 @@ async function generateQuestions() {
 
     if (!config.apiKey) {
         showToast('Please configure your API key first', 'error');
-        configModal.show();
+        setTimeout(() => { window.location.href = 'config.html'; }, 1500);
         return;
     }
 
@@ -840,7 +858,7 @@ async function generateQuestions() {
                 messages: [
                     {
                         role: 'system',
-                        content: QUESTION_GENERATION_PROMPT
+                        content: injectJargons(promptConfig.questionPrompt, promptConfig.jargons)
                     },
                     {
                         role: 'user',

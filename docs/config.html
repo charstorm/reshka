@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reshka - Configuration</title>
+
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22><defs><clipPath id=%22c%22><rect width=%2264%22 height=%2264%22 rx=%2216%22/></clipPath><filter id=%22gl%22><feGaussianBlur stdDeviation=%223%22/></filter></defs><rect width=%2264%22 height=%2264%22 rx=%2216%22 fill=%22%23080810%22/><g clip-path=%22url(%23c)%22><path d=%22M6 32 C9 32 10 26 13 26 S17 38 19 38 S22 20 25 20 S28 44 30 44 S33 14 36 14 S39 48 41 48 S44 22 47 22 S50 40 52 40 S55 28 58 28 L60 32%22 stroke=%22%2300e5ff%22 stroke-width=%224.5%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 filter=%22url(%23gl)%22 opacity=%22.8%22/><path d=%22M6 32 C9 32 10 26 13 26 S17 38 19 38 S22 20 25 20 S28 44 30 44 S33 14 36 14 S39 48 41 48 S44 22 47 22 S50 40 52 40 S55 28 58 28 L60 32%22 stroke=%22%2300ffff%22 stroke-width=%222.5%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/><path d=%22M6 32 C9 32 10 26 13 26 S17 38 19 38 S22 20 25 20 S28 44 30 44 S33 14 36 14 S39 48 41 48 S44 22 47 22 S50 40 52 40 S55 28 58 28 L60 32%22 stroke=%22%23eeffff%22 stroke-width=%221%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/></g></svg>">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;500;600&family=Orbitron:wght@400;600;700&family=Rajdhani:wght@400;500;600&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <div class="control-panel">
+            <a href="index.html" class="app-title" style="text-decoration: none;">
+                <div class="main-title">Reshka</div>
+                <div class="subtitle">Configuration</div>
+            </a>
+
+            <div class="nav-links" style="margin-left: auto;">
+                <a href="index.html" class="nav-link-btn" data-bs-toggle="tooltip" title="Transcription"><i class="fas fa-microphone"></i></a>
+                <a href="config.html" class="nav-link-btn active" data-bs-toggle="tooltip" title="Configuration"><i class="fas fa-cog"></i></a>
+                <a href="prompts.html" class="nav-link-btn" data-bs-toggle="tooltip" title="Prompts"><i class="fas fa-pen"></i></a>
+            </div>
+        </div>
+
+        <div class="form-page-content">
+            <div class="form-page-card">
+                <h2 class="form-page-title"><i class="fas fa-cog me-2"></i>Connection Settings</h2>
+
+                <div class="mb-4">
+                    <label for="endpointUrl" class="form-label">Endpoint URL</label>
+                    <input type="url" class="form-control" id="endpointUrl"
+                        placeholder="https://openrouter.ai/api/v1/chat/completions">
+                </div>
+                <div class="mb-4">
+                    <label for="apiKey" class="form-label">API Key</label>
+                    <input type="password" class="form-control" id="apiKey" placeholder="Enter your API key">
+                </div>
+                <div class="mb-4">
+                    <label for="speechModel" class="form-label">Speech Model</label>
+                    <input type="text" class="form-control" id="speechModel" placeholder="google/gemini-2.5-flash">
+                </div>
+                <div class="mb-4">
+                    <label for="rephraseModel" class="form-label">Rephrase Model</label>
+                    <input type="text" class="form-control" id="rephraseModel" placeholder="google/gemini-2.5-flash">
+                </div>
+                <div class="mb-4">
+                    <label for="questionModel" class="form-label">Question Model</label>
+                    <input type="text" class="form-control" id="questionModel" placeholder="google/gemini-2.5-flash">
+                </div>
+
+                <div class="form-page-actions">
+                    <a href="index.html" class="btn btn-secondary-page">
+                        <i class="fas fa-arrow-left me-2"></i>Back
+                    </a>
+                    <button class="btn btn-primary-page" onclick="saveConfig()">
+                        <i class="fas fa-save me-2"></i>Save
+                    </button>
+                </div>
+
+                <div id="saveStatus" class="save-status" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="config.js"></script>
+</body>
+
+</html>
