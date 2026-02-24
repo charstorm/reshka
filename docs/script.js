@@ -10,7 +10,8 @@ const config = {
     apiKey: '',
     speechModel: 'google/gemini-2.5-flash',
     rephraseModel: 'google/gemini-2.5-flash',
-    questionModel: 'google/gemini-2.5-flash'
+    questionModel: 'google/gemini-2.5-flash',
+    autoSleepSeconds: 60
 };
 
 const TRANSCRIPTION_SYSTEM_PROMPT = `You are a speech transcription system named Reshka.`;
@@ -73,6 +74,26 @@ const VAD_CONFIG = {
     minSpeechFrames: 15
 };
 
+const MAX_CONSECUTIVE_MISFIRES = 3;
+let autoSleepTimer = null;
+let consecutiveMisfires = 0;
+
+function resetAutoSleepTimer() {
+    if (autoSleepTimer) clearTimeout(autoSleepTimer);
+    const seconds = config.autoSleepSeconds || 60;
+    autoSleepTimer = setTimeout(() => {
+        addLog(`Auto-sleep: no speech detected for ${seconds}s`, 'warning');
+        stopTranscription();
+    }, seconds * 1000);
+}
+
+function clearAutoSleepTimer() {
+    if (autoSleepTimer) {
+        clearTimeout(autoSleepTimer);
+        autoSleepTimer = null;
+    }
+}
+
 const rephraseModal = new bootstrap.Modal(document.getElementById('rephraseModal'));
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -107,6 +128,7 @@ function loadConfig() {
         config.speechModel = parsed.speechModel || config.speechModel;
         config.rephraseModel = parsed.rephraseModel || config.rephraseModel;
         config.questionModel = parsed.questionModel || config.questionModel;
+        if (parsed.autoSleepSeconds !== undefined) config.autoSleepSeconds = parsed.autoSleepSeconds;
     }
 }
 
@@ -480,14 +502,22 @@ async function startTranscription() {
 
                 await processSpeechAudio(audio);
 
+                consecutiveMisfires = 0;
+                resetAutoSleepTimer();
+
                 if (isTranscribing) {
                     updateStatus('active', 'Listening...');
                 }
             },
 
             onVADMisfire: () => {
-                addLog('VAD misfire detected', 'warning');
+                consecutiveMisfires++;
+                addLog(`VAD misfire detected (${consecutiveMisfires}/${MAX_CONSECUTIVE_MISFIRES})`, 'warning');
                 playSound('misfire');
+                if (consecutiveMisfires >= MAX_CONSECUTIVE_MISFIRES) {
+                    addLog('Auto-sleep: too many consecutive misfires', 'warning');
+                    stopTranscription();
+                }
             },
 
             positiveSpeechThreshold: VAD_CONFIG.positiveSpeechThreshold,
@@ -501,10 +531,11 @@ async function startTranscription() {
 
         myvad.start();
         isTranscribing = true;
+        consecutiveMisfires = 0;
+        resetAutoSleepTimer();
         updateToggleButton();
         updateStatus('active', 'Listening...');
         addLog('Live transcription started', 'success');
-        showToast('Live transcription started');
     } catch (error) {
         console.error('Error starting transcription:', error);
         addLog(`Error: ${error.message}`, 'error');
@@ -526,10 +557,11 @@ async function stopTranscription() {
     }
 
     isTranscribing = false;
+    consecutiveMisfires = 0;
+    clearAutoSleepTimer();
     updateToggleButton();
     updateStatus('ready', 'Ready');
     addLog('Live transcription stopped', 'info');
-    showToast('Live transcription stopped');
 }
 
 function updateToggleButton() {
@@ -649,9 +681,8 @@ function addTranscriptEntry(text) {
     }
 
     const transcriptArea = document.getElementById('transcriptArea');
-    let content = transcriptArea.textContent.trim();
-    content += '\n' + text.trim();
-    transcriptArea.textContent = content;
+    const existing = transcriptArea.textContent.trim();
+    transcriptArea.textContent = existing ? existing + '\n' + text.trim() : text.trim();
     transcriptArea.scrollTop = transcriptArea.scrollHeight;
 
     saveTranscript();

@@ -3,7 +3,8 @@ const DEFAULTS = {
     apiKey: '',
     speechModel: 'google/gemini-2.5-flash',
     rephraseModel: 'google/gemini-2.5-flash',
-    questionModel: 'google/gemini-2.5-flash'
+    questionModel: 'google/gemini-2.5-flash',
+    autoSleepSeconds: 60
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -22,15 +23,18 @@ function loadConfig() {
     document.getElementById('speechModel').value = cfg.speechModel;
     document.getElementById('rephraseModel').value = cfg.rephraseModel;
     document.getElementById('questionModel').value = cfg.questionModel;
+    document.getElementById('autoSleepSeconds').value = cfg.autoSleepSeconds;
 }
 
 function saveConfig() {
+    const autoSleepRaw = parseInt(document.getElementById('autoSleepSeconds').value, 10);
     const cfg = {
         endpoint: document.getElementById('endpointUrl').value.trim() || DEFAULTS.endpoint,
         apiKey: document.getElementById('apiKey').value.trim(),
         speechModel: document.getElementById('speechModel').value.trim() || DEFAULTS.speechModel,
         rephraseModel: document.getElementById('rephraseModel').value.trim() || DEFAULTS.rephraseModel,
-        questionModel: document.getElementById('questionModel').value.trim() || DEFAULTS.questionModel
+        questionModel: document.getElementById('questionModel').value.trim() || DEFAULTS.questionModel,
+        autoSleepSeconds: (!isNaN(autoSleepRaw) && autoSleepRaw >= 10) ? autoSleepRaw : DEFAULTS.autoSleepSeconds
     };
 
     localStorage.setItem('reshka:appConfig', JSON.stringify(cfg));

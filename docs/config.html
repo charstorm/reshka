@@ -57,6 +57,11 @@
                     <label for="questionModel" class="form-label">Question Model</label>
                     <input type="text" class="form-control" id="questionModel" placeholder="google/gemini-2.5-flash">
                 </div>
+                <div class="mb-4">
+                    <label for="autoSleepSeconds" class="form-label">Auto-sleep (seconds)</label>
+                    <input type="number" class="form-control" id="autoSleepSeconds" placeholder="60" min="10">
+                    <div class="form-text" style="color: var(--accent-dim);">Stop listening after this many seconds of no real speech. Consecutive misfires also trigger sleep after 3.</div>
+                </div>
 
                 <div class="form-page-actions">
                     <a href="index.html" class="btn btn-secondary-page">
