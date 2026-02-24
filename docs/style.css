@@ -436,11 +436,6 @@ body {
     outline: none;
 }
 
-/* Timestamp separator in transcript */
-.transcript-timestamp {
-    color: var(--text-secondary);
-    font-style: italic;
-}
 
 /* Buttons */
 .btn {

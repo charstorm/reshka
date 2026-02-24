@@ -1,6 +1,5 @@
 let myvad = null;
 let isTranscribing = false;
-let lastTranscriptTimestamp = null;
 
 const FADE_DURATION = 0.05;
 const audioCache = {};
@@ -632,7 +631,8 @@ function addLog(message, type = 'info') {
     const entry = document.createElement('div');
     entry.className = `log-entry ${type}`;
 
-    const timestamp = formatDateTimestamp(new Date());
+    const now = new Date();
+    const timestamp = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
     entry.innerHTML = `
         <div class="log-timestamp">${timestamp}</div>
         ${message}
@@ -649,50 +649,18 @@ function addTranscriptEntry(text) {
     }
 
     const transcriptArea = document.getElementById('transcriptArea');
-    const now = new Date();
-    const currentTimestamp = now.getTime();
-
-    // Add timestamp separator if needed (>10 min gap)
-    const shouldAddTimestamp = !lastTranscriptTimestamp ||
-        (currentTimestamp - lastTranscriptTimestamp) > (10 * 60 * 1000);
-
     let content = transcriptArea.textContent.trim();
-
-    if (shouldAddTimestamp) {
-        const timestamp = formatDateTimestamp(now);
-        content += `\n--- [${timestamp}] ---`;
-    }
-
-    // Add transcription text (trimmed)
     content += '\n' + text.trim();
     transcriptArea.textContent = content;
-
-    lastTranscriptTimestamp = currentTimestamp;
     transcriptArea.scrollTop = transcriptArea.scrollHeight;
 
     saveTranscript();
 }
 
-function formatTimestamp(date) {
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const seconds = String(date.getSeconds()).padStart(2, '0');
-    return `${hours}:${minutes}:${seconds}`;
-}
-
-function formatDateTimestamp(date) {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    return `${year}/${month}/${day} ${hours}:${minutes}`;
-}
 
 function clearTranscript() {
     const transcriptArea = document.getElementById('transcriptArea');
     transcriptArea.textContent = '';
-    lastTranscriptTimestamp = null;
     localStorage.removeItem('reshka:audioTranscript');
     addLog('Transcript cleared', 'info');
     showToast('Transcript cleared');
@@ -716,21 +684,15 @@ function copyTranscript() {
 }
 
 function loadTranscript() {
-    const savedTranscript = localStorage.getItem('reshka:audioTranscript');
-    if (savedTranscript) {
-        const data = JSON.parse(savedTranscript);
-        document.getElementById('transcriptArea').textContent = data.text;
-        lastTranscriptTimestamp = data.lastTimestamp;
+    const saved = localStorage.getItem('reshka:audioTranscript');
+    if (saved) {
+        document.getElementById('transcriptArea').textContent = JSON.parse(saved).text;
     }
 }
 
 function saveTranscript() {
-    const transcriptArea = document.getElementById('transcriptArea');
-    const data = {
-        text: transcriptArea.textContent,
-        lastTimestamp: lastTranscriptTimestamp
-    };
-    localStorage.setItem('reshka:audioTranscript', JSON.stringify(data));
+    const text = document.getElementById('transcriptArea').textContent;
+    localStorage.setItem('reshka:audioTranscript', JSON.stringify({ text }));
 }
 
 async function rephraseTranscript() {
