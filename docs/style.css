@@ -213,7 +213,7 @@ body {
 }
 
 .log-panel {
-    height: 40%;
+    flex: 0 0 40%;
     background-color: var(--bg-panel);
     border-bottom: 1px solid rgba(0, 229, 255, 0.08);
 }
@@ -225,6 +225,7 @@ body {
 
 .speech-timer-panel {
     height: 36px;
+    flex-shrink: 0;
     display: flex;
     flex-direction: row;
     align-items: center;
@@ -266,7 +267,7 @@ body {
 }
 
 .questions-panel {
-    height: 52%;
+    flex: 1;
     background-color: var(--bg-panel);
     display: flex;
     flex-direction: column;
