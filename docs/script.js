@@ -137,6 +137,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadRephraseResult();
     loadQuestions();
 
+    document.getElementById('transcriptArea').addEventListener('input', saveTranscriptDebounced);
+
     const toggleBtn = document.getElementById('toggleBtn');
     toggleBtn.disabled = true;
     addLog('Generating audio feedback...', 'info');
@@ -765,6 +767,12 @@ function loadTranscript() {
 function saveTranscript() {
     const text = document.getElementById('transcriptArea').textContent;
     localStorage.setItem('reshka:audioTranscript', JSON.stringify({ text }));
+}
+
+let _saveTranscriptTimer = null;
+function saveTranscriptDebounced() {
+    clearTimeout(_saveTranscriptTimer);
+    _saveTranscriptTimer = setTimeout(saveTranscript, 1000);
 }
 
 async function rephraseTranscript() {
