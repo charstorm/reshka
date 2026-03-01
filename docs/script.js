@@ -75,22 +75,28 @@ const VAD_CONFIG = {
 };
 
 const MAX_CONSECUTIVE_MISFIRES = 3;
-let autoSleepTimer = null;
+let autoSleepInterval = null;
+let lastSpeechActivityTime = null;
+let isSpeaking = false;
 let consecutiveMisfires = 0;
 
-function resetAutoSleepTimer() {
-    if (autoSleepTimer) clearTimeout(autoSleepTimer);
-    const seconds = config.autoSleepSeconds || 60;
-    autoSleepTimer = setTimeout(() => {
-        addLog(`Auto-sleep: no speech detected for ${seconds}s`, 'warning');
-        stopTranscription();
-    }, seconds * 1000);
+function startAutoSleepWatcher() {
+    stopAutoSleepWatcher();
+    lastSpeechActivityTime = Date.now();
+    const seconds = (config.autoSleepSeconds || 60) * 1000;
+    autoSleepInterval = setInterval(() => {
+        if (isSpeaking) return;
+        if ((Date.now() - lastSpeechActivityTime) >= seconds) {
+            addLog(`Auto-sleep: no speech detected for ${config.autoSleepSeconds || 60}s`, 'warning');
+            stopTranscription();
+        }
+    }, 10000);
 }
 
-function clearAutoSleepTimer() {
-    if (autoSleepTimer) {
-        clearTimeout(autoSleepTimer);
-        autoSleepTimer = null;
+function stopAutoSleepWatcher() {
+    if (autoSleepInterval) {
+        clearInterval(autoSleepInterval);
+        autoSleepInterval = null;
     }
 }
 
@@ -489,6 +495,7 @@ async function startTranscription() {
 
         myvad = await vad.MicVAD.new({
             onSpeechStart: () => {
+                isSpeaking = true;
                 updateStatus('speaking', 'Speaking detected');
                 addLog('Speech started', 'speech-start');
                 playSound('vadUp');
@@ -503,7 +510,8 @@ async function startTranscription() {
                 await processSpeechAudio(audio);
 
                 consecutiveMisfires = 0;
-                resetAutoSleepTimer();
+                lastSpeechActivityTime = Date.now();
+                isSpeaking = false;
 
                 if (isTranscribing) {
                     updateStatus('active', 'Listening...');
@@ -532,7 +540,8 @@ async function startTranscription() {
         myvad.start();
         isTranscribing = true;
         consecutiveMisfires = 0;
-        resetAutoSleepTimer();
+        isSpeaking = false;
+        startAutoSleepWatcher();
         updateToggleButton();
         updateStatus('active', 'Listening...');
         addLog('Live transcription started', 'success');
@@ -558,7 +567,8 @@ async function stopTranscription() {
 
     isTranscribing = false;
     consecutiveMisfires = 0;
-    clearAutoSleepTimer();
+    isSpeaking = false;
+    stopAutoSleepWatcher();
     updateToggleButton();
     updateStatus('ready', 'Ready');
     addLog('Live transcription stopped', 'info');
