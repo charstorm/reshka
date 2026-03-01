@@ -79,6 +79,33 @@ let autoSleepInterval = null;
 let lastSpeechActivityTime = null;
 let isSpeaking = false;
 let consecutiveMisfires = 0;
+let speechTimerInterval = null;
+let speechStartTime = null;
+const SPEECH_TIMER_MAX_MS = 80000;
+
+function startSpeechTimer() {
+    speechStartTime = Date.now();
+    document.getElementById('speechTimerPanel').classList.add('active');
+    speechTimerInterval = setInterval(() => {
+        const elapsed = Date.now() - speechStartTime;
+        const secs = Math.floor(elapsed / 1000);
+        document.getElementById('speechTimerCounter').textContent =
+            `${Math.floor(secs / 60).toString().padStart(2, '0')}:${(secs % 60).toString().padStart(2, '0')}`;
+        document.getElementById('speechTimerFill').style.width =
+            Math.min(elapsed / SPEECH_TIMER_MAX_MS * 100, 100) + '%';
+    }, 250);
+}
+
+function stopSpeechTimer() {
+    clearInterval(speechTimerInterval);
+    speechTimerInterval = null;
+    const fill = document.getElementById('speechTimerFill');
+    const counter = document.getElementById('speechTimerCounter');
+    const panel = document.getElementById('speechTimerPanel');
+    if (fill) fill.style.width = '0%';
+    if (counter) counter.textContent = '00:00';
+    if (panel) panel.classList.remove('active');
+}
 
 function startAutoSleepWatcher() {
     stopAutoSleepWatcher();
@@ -499,9 +526,11 @@ async function startTranscription() {
                 updateStatus('speaking', 'Speaking detected');
                 addLog('Speech started', 'speech-start');
                 playSound('vadUp');
+                startSpeechTimer();
             },
 
             onSpeechEnd: async (audio) => {
+                stopSpeechTimer();
                 playSound('vadDown');
                 updateStatus('processing', 'Processing...');
                 const durationMs = (audio.length / 16000 * 1000).toFixed(0);
@@ -519,6 +548,7 @@ async function startTranscription() {
             },
 
             onVADMisfire: () => {
+                stopSpeechTimer();
                 consecutiveMisfires++;
                 addLog(`VAD misfire detected (${consecutiveMisfires}/${MAX_CONSECUTIVE_MISFIRES})`, 'warning');
                 playSound('misfire');
@@ -569,6 +599,7 @@ async function stopTranscription() {
     consecutiveMisfires = 0;
     isSpeaking = false;
     stopAutoSleepWatcher();
+    stopSpeechTimer();
     updateToggleButton();
     updateStatus('ready', 'Ready');
     addLog('Live transcription stopped', 'info');

@@ -223,8 +223,50 @@ body {
     background-color: var(--bg-panel);
 }
 
+.speech-timer-panel {
+    height: 36px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding: 0 15px;
+    gap: 10px;
+    border-bottom: 1px solid rgba(0, 229, 255, 0.08);
+    opacity: 0.3;
+    transition: opacity 0.2s;
+}
+
+.speech-timer-panel.active {
+    opacity: 1;
+}
+
+.speech-timer-bar-track {
+    flex: 1;
+    height: 8px;
+    background: rgba(0, 229, 255, 0.1);
+    border-radius: 4px;
+    border: 1px solid rgba(0, 229, 255, 0.15);
+    overflow: hidden;
+}
+
+.speech-timer-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+    border-radius: 4px;
+    transition: width 0.25s linear;
+}
+
+.speech-timer-counter {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 1.1rem;
+    color: var(--accent);
+    width: 3.5rem;
+    text-align: left;
+    flex-shrink: 0;
+}
+
 .questions-panel {
-    height: 60%;
+    height: 52%;
     background-color: var(--bg-panel);
     display: flex;
     flex-direction: column;
