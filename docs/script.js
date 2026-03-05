@@ -8,9 +8,9 @@ let audioContext = null;
 const config = {
     endpoint: 'https://openrouter.ai/api/v1/chat/completions',
     apiKey: '',
-    speechModel: 'google/gemini-2.5-flash',
-    rephraseModel: 'google/gemini-2.5-flash',
-    questionModel: 'google/gemini-2.5-flash',
+    speechModel: 'google/gemini-3.1-flash-lite-preview',
+    rephraseModel: 'google/gemini-3.1-flash-lite-preview',
+    questionModel: 'google/gemini-3.1-flash-lite-preview',
     autoSleepSeconds: 60
 };
 
