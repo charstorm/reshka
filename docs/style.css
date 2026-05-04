@@ -473,6 +473,8 @@ body {
     white-space: pre-wrap;
     word-wrap: break-word;
     color: #b0b8c4;
+    resize: none;
+    background: transparent;
 }
 
 .transcript-content:focus {

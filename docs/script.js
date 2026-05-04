@@ -724,8 +724,8 @@ function addTranscriptEntry(text) {
     }
 
     const transcriptArea = document.getElementById('transcriptArea');
-    const existing = transcriptArea.textContent.trim();
-    transcriptArea.textContent = existing ? existing + '\n' + text.trim() : text.trim();
+    const existing = transcriptArea.value.trim();
+    transcriptArea.value = existing ? existing + '\n' + text.trim() : text.trim();
     transcriptArea.scrollTop = transcriptArea.scrollHeight;
 
     saveTranscript();
@@ -734,7 +734,7 @@ function addTranscriptEntry(text) {
 
 function clearTranscript() {
     const transcriptArea = document.getElementById('transcriptArea');
-    transcriptArea.textContent = '';
+    transcriptArea.value = '';
     localStorage.removeItem('reshka:audioTranscript');
     addLog('Transcript cleared', 'info');
     showToast('Transcript cleared');
@@ -742,7 +742,7 @@ function clearTranscript() {
 
 function copyTranscript() {
     const transcriptArea = document.getElementById('transcriptArea');
-    const text = transcriptArea.textContent.trim();
+    const text = transcriptArea.value.trim();
 
     if (text === '') {
         showToast('No transcript to copy', 'error');
@@ -760,12 +760,12 @@ function copyTranscript() {
 function loadTranscript() {
     const saved = localStorage.getItem('reshka:audioTranscript');
     if (saved) {
-        document.getElementById('transcriptArea').textContent = JSON.parse(saved).text;
+        document.getElementById('transcriptArea').value = JSON.parse(saved).text;
     }
 }
 
 function saveTranscript() {
-    const text = document.getElementById('transcriptArea').textContent;
+    const text = document.getElementById('transcriptArea').value;
     localStorage.setItem('reshka:audioTranscript', JSON.stringify({ text }));
 }
 
@@ -777,7 +777,7 @@ function saveTranscriptDebounced() {
 
 async function rephraseTranscript() {
     const transcriptArea = document.getElementById('transcriptArea');
-    const text = transcriptArea.textContent.trim();
+    const text = transcriptArea.value.trim();
 
     if (text === '') {
         showToast('No transcript to rephrase', 'error');
@@ -871,7 +871,7 @@ function saveRephraseResult(content) {
 
 async function generateQuestions() {
     const transcriptArea = document.getElementById('transcriptArea');
-    const text = transcriptArea.textContent.trim();
+    const text = transcriptArea.value.trim();
 
     if (text === '') {
         showToast('No transcript to generate questions from', 'error');
