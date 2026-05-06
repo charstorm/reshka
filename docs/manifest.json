@@ -1,0 +1,12 @@
+{
+  "name": "Reshka - Handsfree Transcription",
+  "short_name": "Reshka",
+  "description": "Handsfree transcription with voice activity detection and AI rephrasing.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#080810",
+  "theme_color": "#00e5ff",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

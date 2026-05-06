@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <clipPath id="c"><rect width="64" height="64" rx="16"/></clipPath>
+    <filter id="gl"><feGaussianBlur stdDeviation="3"/></filter>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="#080810"/>
+  <g clip-path="url(#c)">
+    <path d="M6 32 C9 32 10 26 13 26 S17 38 19 38 S22 20 25 20 S28 44 30 44 S33 14 36 14 S39 48 41 48 S44 22 47 22 S50 40 52 40 S55 28 58 28 L60 32" stroke="#00e5ff" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round" filter="url(#gl)" opacity=".8"/>
+    <path d="M6 32 C9 32 10 26 13 26 S17 38 19 38 S22 20 25 20 S28 44 30 44 S33 14 36 14 S39 48 41 48 S44 22 47 22 S50 40 52 40 S55 28 58 28 L60 32" stroke="#00ffff" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M6 32 C9 32 10 26 13 26 S17 38 19 38 S22 20 25 20 S28 44 30 44 S33 14 36 14 S39 48 41 48 S44 22 47 22 S50 40 52 40 S55 28 58 28 L60 32" stroke="#eeffff" stroke-width="1" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
