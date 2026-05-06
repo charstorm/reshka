@@ -65,7 +65,9 @@ function injectJargons(prompt, jargons) {
     return prompt.replace('{known_jargons}', lines || '(none)');
 }
 
-const QUESTION_COMMAND_PATTERN = /^(?:please\s+)?generate\s+questions(?:[,.]?\s*please)?[.!]?$/i;
+const VOICE_COMMANDS = [
+    { phrase: 'generate questions', action: () => generateQuestions() },
+];
 
 const VAD_CONFIG = {
     positiveSpeechThreshold: 0.5,
@@ -976,11 +978,26 @@ function loadQuestions() {
     }
 }
 
+function preprocessVoiceText(text) {
+    return text
+        .replace(/[^a-z0-9 ]/gi, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLowerCase();
+}
+
 function checkForVoiceCommands(text) {
-    if (QUESTION_COMMAND_PATTERN.test(text.trim())) {
-        addLog('Voice command detected: generate questions', 'info');
-        generateQuestions();
-        return true;
+    const processed = preprocessVoiceText(text);
+    const wordCount = processed.split(' ').length;
+
+    for (const cmd of VOICE_COMMANDS) {
+        const phraseWords = cmd.phrase.split(' ').length;
+        if (wordCount > phraseWords + 2) continue;
+        if (processed.includes(cmd.phrase)) {
+            addLog(`Voice command detected: ${cmd.phrase}`, 'info');
+            cmd.action();
+            return true;
+        }
     }
     return false;
 }
