@@ -141,6 +141,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     document.getElementById('transcriptArea').addEventListener('input', saveTranscriptDebounced);
 
+    document.addEventListener('keydown', handleTranscriptShortcut);
+    addLog('Shortcuts: Ctrl+C / Ctrl+Insert to copy | Ctrl+X / Shift+Delete to cut', 'info');
+
     const toggleBtn = document.getElementById('toggleBtn');
     toggleBtn.disabled = true;
     addLog('Generating audio feedback...', 'info');
@@ -148,6 +151,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     addLog('Setup complete', 'success');
     toggleBtn.disabled = false;
 });
+
+function handleTranscriptShortcut(e) {
+    const isCopy = (e.ctrlKey && e.key === 'c') || (e.ctrlKey && e.key === 'Insert');
+    const isCut  = (e.ctrlKey && e.key === 'x') || (e.shiftKey && e.key === 'Delete');
+    if (!isCopy && !isCut) return;
+
+    const textarea = document.getElementById('transcriptArea');
+    const hasSelection = textarea.selectionStart !== textarea.selectionEnd;
+    if (hasSelection) return;
+
+    e.preventDefault();
+    const text = textarea.value.trim();
+    if (!text) return;
+
+    navigator.clipboard.writeText(text).then(() => {
+        if (isCut) {
+            clearTranscript();
+            addLog('Transcript cut to clipboard', 'success');
+        } else {
+            addLog('Transcript copied to clipboard', 'success');
+        }
+    });
+}
 
 function initTooltips() {
     const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
