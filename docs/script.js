@@ -142,7 +142,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('transcriptArea').addEventListener('input', saveTranscriptDebounced);
 
     document.addEventListener('keydown', handleTranscriptShortcut);
-    addLog('Shortcuts: Ctrl+C / Ctrl+Insert to copy | Ctrl+X / Shift+Delete to cut', 'info');
+    addLog(`<div style="line-height:1.7">Keyboard shortcuts:<br>
+&nbsp;&nbsp;• <b>Ctrl+M</b> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Start / Stop recording<br>
+&nbsp;&nbsp;• <b>Ctrl+C</b> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Copy transcript<br>
+&nbsp;&nbsp;• <b>Ctrl+X</b> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Cut transcript</div>`, 'info');
 
     const toggleBtn = document.getElementById('toggleBtn');
     toggleBtn.disabled = true;
@@ -153,6 +156,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 function handleTranscriptShortcut(e) {
+    if (e.ctrlKey && e.key === 'm') {
+        e.preventDefault();
+        toggleTranscription();
+        return;
+    }
+
     const isCopy = (e.ctrlKey && e.key === 'c') || (e.ctrlKey && e.key === 'Insert');
     const isCut  = (e.ctrlKey && e.key === 'x') || (e.shiftKey && e.key === 'Delete');
     if (!isCopy && !isCut) return;
