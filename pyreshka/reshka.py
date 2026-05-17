@@ -215,7 +215,9 @@ class AudioConverter:
     def to_wav_bytes(audio_data: np.ndarray) -> bytes:
         # Ensure contiguous int16 layout before handing raw bytes to the wave C module.
         # np.concatenate can return non-contiguous views that corrupt the allocator.
+        debug_log("to_wav_bytes: ascontiguousarray")
         safe = np.ascontiguousarray(audio_data, dtype=np.int16)
+        debug_log("to_wav_bytes: writing WAV")
         buffer = io.BytesIO()
         with wave.open(buffer, "wb") as wf:
             wf.setnchannels(CHANNELS)
@@ -224,6 +226,7 @@ class AudioConverter:
             wf.writeframes(safe.tobytes())
 
         buffer.seek(0)
+        debug_log("to_wav_bytes: done")
         return buffer.read()
 
     @staticmethod
@@ -244,7 +247,9 @@ class TranscriptionService:
 
     def transcribe(self, audio_data: np.ndarray) -> tuple[str | None, CompletionUsage | None]:
         try:
+            debug_log(f"transcribe: encoding {len(audio_data)} samples ({len(audio_data)*2//1024}KB raw)")
             audio_b64 = AudioConverter.to_base64(audio_data)
+            debug_log(f"transcribe: encoded to {len(audio_b64)//1024}KB base64, sending HTTP")
 
             response = self.client.chat.completions.create(
                 model=self.model_name,
@@ -893,6 +898,10 @@ class TranscriptionGUI:
     def _transcription_worker(self, audio_data: np.ndarray) -> None:
         """Background thread: calls the API and schedules GUI update on main thread."""
         assert self.transcription_service is not None
+        max_samples = 30 * SAMPLE_RATE
+        if len(audio_data) > max_samples:
+            debug_log(f"audio truncated from {len(audio_data)/SAMPLE_RATE:.1f}s to 30s")
+            audio_data = audio_data[:max_samples]
         duration = len(audio_data) / SAMPLE_RATE
         debug_log(f"API call start ({duration:.2f}s audio)")
         self.root.after(0, lambda: self._log(f"⏳ Processing audio ({duration:.2f}s)..."))
