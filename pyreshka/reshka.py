@@ -213,12 +213,15 @@ class VADProcessor:
 class AudioConverter:
     @staticmethod
     def to_wav_bytes(audio_data: np.ndarray) -> bytes:
+        # Ensure contiguous int16 layout before handing raw bytes to the wave C module.
+        # np.concatenate can return non-contiguous views that corrupt the allocator.
+        safe = np.ascontiguousarray(audio_data, dtype=np.int16)
         buffer = io.BytesIO()
         with wave.open(buffer, "wb") as wf:
             wf.setnchannels(CHANNELS)
             wf.setsampwidth(2)
             wf.setframerate(SAMPLE_RATE)
-            wf.writeframes(audio_data.tobytes())
+            wf.writeframes(safe.tobytes())
 
         buffer.seek(0)
         return buffer.read()
@@ -877,16 +880,16 @@ class TranscriptionGUI:
         """Background thread for audio streaming."""
         assert self.stream is not None
         debug_log("Stream loop started")
-        while self.context and self.context.is_running:
-            try:
-                self.stream.start()
-                while self.context.is_running:
-                    sd.sleep(100)
-            except Exception as e:
-                debug_log(f"Stream exception: {e}")
-            finally:
-                with suppress(Exception):
-                    self.stream.stop()
+        try:
+            self.stream.start()
+            while self.context and self.context.is_running:
+                sd.sleep(100)
+        except Exception as e:
+            debug_log(f"Stream exception: {e}")
+        finally:
+            with suppress(Exception):
+                self.stream.stop()
+            debug_log("Stream loop ended")
 
     def _transcription_worker(self, audio_data: np.ndarray) -> None:
         """Background thread: calls the API and schedules GUI update on main thread."""
