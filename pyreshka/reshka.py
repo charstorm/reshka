@@ -251,7 +251,7 @@ class TranscriptionService:
                                 "type": "input_audio",
                                 "input_audio": {"data": audio_b64, "format": "wav"},
                             },
-                            {"type": "text", "text": "[/Audio] Transcription:"},
+                            {"type": "text", "text": "[/Audio] Response(json):"},
                         ],
                     },
                 ],
