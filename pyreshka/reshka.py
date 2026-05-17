@@ -9,6 +9,8 @@ Keyboard shortcuts:
 - Ctrl+Shift+X: Clear transcription
 """
 
+from __future__ import annotations
+
 import base64
 import io
 import json
@@ -26,14 +28,19 @@ from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import numpy as np
-import sounddevice as sd
 from dotenv import load_dotenv
-from openai import OpenAI
-from openai.types import CompletionUsage
-from pysilero_vad import SileroVoiceActivityDetector
+
+# Heavy deps (numpy, sounddevice, openai, pysilero_vad) are imported inside
+# setup() so the window appears immediately on launch instead of waiting for
+# all the native libraries to load.
+if TYPE_CHECKING:
+    import numpy as np
+    import sounddevice as sd
+    from openai import OpenAI
+    from openai.types import CompletionUsage
+    from pysilero_vad import SileroVoiceActivityDetector
 
 _env_path = Path(__file__).parent / ".env"
 if _env_path.exists():
@@ -114,7 +121,7 @@ API_KEY_ENV = "OPENROUTER_API_KEY"
 SAMPLE_RATE = 16000
 CHANNELS = 1
 CHUNK_SIZE = 512
-DTYPE = np.int16
+DTYPE = "int16"
 
 VAD_THRESHOLD = 0.5
 MIN_SPEECH_DURATION_MS = 300
@@ -795,6 +802,14 @@ class TranscriptionGUI:
 
     def setup(self) -> None:
         """Initialize the transcription system."""
+        # Import heavy deps here so the window appears before libraries load.
+        global np, sd, OpenAI, CompletionUsage, SileroVoiceActivityDetector
+        import numpy as np
+        import sounddevice as sd
+        from openai import OpenAI
+        from openai.types import CompletionUsage
+        from pysilero_vad import SileroVoiceActivityDetector
+
         self._initializing = True
         self._refresh_status_display()
         self._log("📦 Loading Silero VAD detector...")
