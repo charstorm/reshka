@@ -396,8 +396,6 @@ class TranscriptionGUI:
         self.stream: sd.InputStream | None = None
         self.audio_handler: AudioStreamHandler | None = None
         self.is_recording = False
-        self.transcription_parts: list[str] = []
-        self.full_transcription = ""
         self._audio_queue: queue.Queue[np.ndarray] = queue.Queue()
         self._result_queue: queue.Queue[tuple[str | None, Any]] = queue.Queue()
         self._state_queue: queue.Queue[str] = queue.Queue()
@@ -701,8 +699,6 @@ class TranscriptionGUI:
     def _clear_transcription(self) -> None:
         """Clear the transcription buffer."""
         self.transcription_text.delete("1.0", "end")
-        self.transcription_parts = []
-        self.full_transcription = ""
         self._log("🗑️ Transcription cleared")
 
     def _queue_audio_processing(self, audio_data: np.ndarray) -> None:
@@ -746,8 +742,6 @@ class TranscriptionGUI:
                 self.transcription_text.insert("end", "\n")
             self.transcription_text.insert("end", text)
             self.transcription_text.see("end")
-            self.transcription_parts.append(text)
-            self.full_transcription = self.transcription_text.get("1.0", "end-1c").strip()
 
     def _on_close(self) -> None:
         """Handle window close event."""
@@ -766,9 +760,10 @@ class TranscriptionGUI:
             with suppress(Exception):
                 self.stream.abort()
 
-        if self.auto_copy_var.get() and self.full_transcription:
+        screen_text = self.transcription_text.get("1.0", "end-1c").strip()
+        if self.auto_copy_var.get() and screen_text:
             self.root.clipboard_clear()
-            self.root.clipboard_append(self.full_transcription)
+            self.root.clipboard_append(screen_text)
             self.root.update()  # flush so the selection is registered
             self.root.withdraw()  # hide window while clipboard manager claims it
             self._log("📋 Transcription auto-copied to clipboard on exit")
