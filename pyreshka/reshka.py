@@ -454,6 +454,10 @@ class TranscriptionGUI:
         self.root.geometry("640x460")
         self.root.configure(bg=self._C_BG)
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
+        _icon_path = Path(__file__).parent / "icon.png"
+        if _icon_path.exists():
+            _icon = tk.PhotoImage(file=str(_icon_path))
+            self.root.iconphoto(True, _icon)
         self.root.bind("<Control-m>", lambda e: self._toggle_recording())
         self.root.bind("<Control-c>", lambda e: self._copy_transcription())
         self.root.bind("<Control-x>", lambda e: self._cut_transcription())
