@@ -12,10 +12,11 @@ dependencies = [
     "sounddevice",
     "pysilero-vad",
     "openai",
+    "python-dotenv",
 ]
 
 [project.scripts]
-transcribe = "transcriber_cli:main"
+reshka = "reshka:main"
 
 [dependency-groups]
 dev = [

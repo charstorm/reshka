@@ -31,9 +31,14 @@ from typing import Any
 
 import numpy as np
 import sounddevice as sd
+from dotenv import load_dotenv
 from openai import OpenAI
 from openai.types import CompletionUsage
 from pysilero_vad import SileroVoiceActivityDetector
+
+_env_path = Path(__file__).parent / ".env"
+if _env_path.exists():
+    load_dotenv(_env_path)
 
 # ---------------------------------------------------------------------------
 # Logging — always visible on stderr, file copy also kept
@@ -48,16 +53,16 @@ _stderr_tee = open(LOG_FILE, "w", encoding="utf-8")  # noqa: SIM115
 
 
 class _StderrTee:
-    def __init__(self, original, file):
+    def __init__(self, original: Any, file: Any) -> None:
         self.original = original
         self.file = file
 
-    def write(self, text):
+    def write(self, text: str) -> None:
         self.original.write(text)
         self.file.write(text)
         self.file.flush()
 
-    def flush(self):
+    def flush(self) -> None:
         self.original.flush()
         self.file.flush()
 
@@ -91,7 +96,7 @@ def debug_log(msg: str) -> None:
 _original_excepthook = sys.excepthook
 
 
-def _excepthook(exc_type, exc_value, exc_tb):
+def _excepthook(exc_type: type[BaseException], exc_value: BaseException, exc_tb: Any) -> None:
     logger.critical("Uncaught exception", exc_info=(exc_type, exc_value, exc_tb))
     _original_excepthook(exc_type, exc_value, exc_tb)
 
@@ -404,12 +409,12 @@ class TranscriptionGUI:
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.sessions_dir.mkdir(parents=True, exist_ok=True)
 
-    def _load_state(self) -> dict:
+    def _load_state(self) -> dict[str, Any]:
         """Load state from state.json."""
         if self.state_file.exists():
             try:
                 with open(self.state_file) as f:
-                    return json.load(f)
+                    return dict[str, Any](json.load(f))
             except Exception:
                 pass
         return {}
@@ -672,8 +677,8 @@ class TranscriptionGUI:
         if self.auto_copy_var.get() and self.full_transcription:
             self.root.clipboard_clear()
             self.root.clipboard_append(self.full_transcription)
-            self.root.update()          # flush so the selection is registered
-            self.root.withdraw()        # hide window while clipboard manager claims it
+            self.root.update()  # flush so the selection is registered
+            self.root.withdraw()  # hide window while clipboard manager claims it
             self._log("📋 Transcription auto-copied to clipboard on exit")
             self.root.after(300, self.root.destroy)
         else:
@@ -731,16 +736,20 @@ class TranscriptionGUI:
 
         # Create audio handler with status callback
         self.audio_handler = AudioStreamHandler(self.context)
+
+        def _on_status(msg: str) -> None:
+            self.root.after(0, lambda m=msg: self._log(m))  # type: ignore[misc]
+
+        def _on_speech_start() -> None:
+            self.root.after(0, lambda: self._add_status("speech"))
+
+        def _on_speech_end() -> None:
+            self.root.after(0, lambda: self._remove_status("speech"))
+
         # callbacks are called from the audio callback thread — must dispatch to main thread
-        self.audio_handler.on_status_change = lambda msg: self.root.after(
-            0, lambda m=msg: self._log(m)
-        )
-        self.audio_handler.on_speech_start = lambda: self.root.after(
-            0, lambda: self._add_status("speech")
-        )
-        self.audio_handler.on_speech_end = lambda: self.root.after(
-            0, lambda: self._remove_status("speech")
-        )
+        self.audio_handler.on_status_change = _on_status
+        self.audio_handler.on_speech_start = _on_speech_start
+        self.audio_handler.on_speech_end = _on_speech_end
         self.audio_handler.on_audio_ready = self._queue_audio_processing
 
         # Setup audio stream
@@ -775,6 +784,7 @@ class TranscriptionGUI:
 
     def _stream_loop(self) -> None:
         """Background thread for audio streaming."""
+        assert self.stream is not None
         debug_log("Stream loop started")
         while self.context and self.context.is_running:
             try:
@@ -789,6 +799,7 @@ class TranscriptionGUI:
 
     def _transcription_worker(self, audio_data: np.ndarray) -> None:
         """Background thread: calls the API and schedules GUI update on main thread."""
+        assert self.transcription_service is not None
         duration = len(audio_data) / SAMPLE_RATE
         debug_log(f"API call start ({duration:.2f}s audio)")
         self.root.after(0, lambda: self._log(f"⏳ Processing audio ({duration:.2f}s)..."))
@@ -797,7 +808,8 @@ class TranscriptionGUI:
             raw_output, usage = self.transcription_service.transcribe(audio_data)
         except Exception as e:
             debug_log(f"API call failed: {e}")
-            self.root.after(0, lambda err=e: self._log(f"❌ Transcription error: {err}"))
+            err_msg = f"❌ Transcription error: {e}"
+            self.root.after(0, lambda m=err_msg: self._log(m))  # type: ignore[misc]
             self.root.after(0, lambda: self._remove_status("api"))
             return
 

@@ -45,7 +45,7 @@ else
     run_check "Ruff check" uv run ruff check .
 fi
 
-run_check "Mypy (strict)" uv run mypy transcriber_cli.py
+run_check "Mypy (strict)" uv run mypy reshka.py
 
 echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${GREEN}Passed: $pass_count${NC}"
