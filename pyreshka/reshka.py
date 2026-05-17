@@ -835,7 +835,7 @@ class TranscriptionGUI:
         self.audio_handler = AudioStreamHandler(self.context)
 
         def _on_status(msg: str) -> None:
-            self.root.after(0, lambda m=msg: self._log(m))  # type: ignore[misc]
+            debug_log(f"[audio cb] {msg}")
 
         def _on_speech_start() -> None:
             self._state_queue.put("speech")
@@ -904,15 +904,13 @@ class TranscriptionGUI:
             audio_data = audio_data[:max_samples]
         duration = len(audio_data) / SAMPLE_RATE
         debug_log(f"API call start ({duration:.2f}s audio)")
-        self.root.after(0, lambda: self._log(f"⏳ Processing audio ({duration:.2f}s)..."))
 
         try:
             raw_output, usage = self.transcription_service.transcribe(audio_data)
         except Exception as e:
             debug_log(f"API call failed: {e}")
-            err_msg = f"❌ Transcription error: {e}"
-            self.root.after(0, lambda m=err_msg: self._log(m))  # type: ignore[misc]
-            self.root.after(0, lambda: self._set_api_active(False))
+            # Put None so the main-thread poller clears the api status
+            self._result_queue.put((None, None))
             return
 
         debug_log(f"API call done — raw: {raw_output!r}")
