@@ -26,7 +26,6 @@ from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from tkinter import ttk
 from typing import Any
 
 import numpy as np
@@ -432,100 +431,169 @@ class TranscriptionGUI:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         return self.sessions_dir / f"s{timestamp}.txt"
 
+    # ── colour palette ──────────────────────────────────────────────────────
+    _C_BG = "#1e1e2e"
+    _C_SURFACE = "#252535"
+    _C_BORDER = "#45475a"
+    _C_TEXT = "#cdd6f4"
+    _C_SUBTEXT = "#a6adc8"
+    _C_BTN = "#313244"
+    _C_BTN_ACTIVE = "#45475a"
+    _C_ACCENT = "#89b4fa"
+    _C_DANGER = "#f38ba8"
+    _C_GREEN = "#a6e3a1"
+    _C_YELLOW = "#f9e2af"
+
     def _setup_root(self) -> None:
         self.root = tk.Tk()
-        self.root.title("Speech Transcription")
-        self.root.geometry("600x420")
+        self.root.title("Reshka")
+        self.root.geometry("640x460")
+        self.root.configure(bg=self._C_BG)
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
         self.root.bind("<Control-m>", lambda e: self._toggle_recording())
         self.root.bind("<Control-c>", lambda e: self._copy_transcription())
         self.root.bind("<Control-x>", lambda e: self._cut_transcription())
         self.root.bind("<Control-X>", lambda e: self._clear_transcription())
 
-        style = ttk.Style(self.root)
-        style.theme_use("clam")
-        style.configure("TButton", font=("Ubuntu", 10), padding=(8, 4), foreground="#1a1a1a")
-        style.configure("TCheckbutton", font=("Ubuntu", 10), foreground="#1a1a1a")
-        style.configure(
-            "Accent.TButton",
-            foreground="white",
-            background="#c0392b",
-            font=("Ubuntu", 10, "bold"),
-            padding=(8, 4),
+    def _mk_btn(
+        self,
+        parent: tk.Widget,
+        text: str,
+        command: Callable[[], None],
+        bg: str | None = None,
+        fg: str | None = None,
+        bold: bool = False,
+    ) -> tk.Button:
+        font_weight = "bold" if bold else "normal"
+        btn = tk.Button(
+            parent,
+            text=text,
+            command=command,
+            bg=bg or self._C_BTN,
+            fg=fg or self._C_TEXT,
+            activebackground=self._C_BTN_ACTIVE,
+            activeforeground=self._C_TEXT,
+            font=("Ubuntu", 10, font_weight),
+            relief="flat",
+            borderwidth=0,
+            padx=12,
+            pady=5,
+            cursor="hand2",
         )
-        style.map("Accent.TButton", background=[("active", "#e74c3c")])
+        return btn
 
     def _setup_ui(self) -> None:
         self.font_transcription = ("Ubuntu", 11)
         self.font_status = ("Ubuntu", 9)
 
-        main_frame = ttk.Frame(self.root, padding="10")
+        main_frame = tk.Frame(self.root, bg=self._C_BG, padx=12, pady=12)
         main_frame.grid(row=0, column=0, sticky="nsew")
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
         main_frame.columnconfigure(0, weight=1)
         main_frame.rowconfigure(0, weight=1)
 
-        # Transcription area (fills all available space)
-        trans_frame = ttk.LabelFrame(main_frame, text="Transcription", padding="5")
-        trans_frame.grid(row=0, column=0, sticky="nsew", pady=(0, 6))
+        # Transcription area
+        text_outer = tk.Frame(main_frame, bg=self._C_BORDER, padx=1, pady=1)
+        text_outer.grid(row=0, column=0, sticky="nsew", pady=(0, 10))
+        text_outer.columnconfigure(0, weight=1)
+        text_outer.rowconfigure(0, weight=1)
 
-        trans_scroll = ttk.Scrollbar(trans_frame, orient="vertical")
+        text_inner = tk.Frame(text_outer, bg=self._C_SURFACE)
+        text_inner.grid(row=0, column=0, sticky="nsew")
+        text_inner.columnconfigure(0, weight=1)
+        text_inner.rowconfigure(0, weight=1)
+
+        trans_scroll = tk.Scrollbar(text_inner, bg=self._C_SURFACE, troughcolor=self._C_BORDER)
         trans_scroll.pack(side="right", fill="y")
         self.transcription_text = tk.Text(
-            trans_frame,
+            text_inner,
             wrap="word",
             font=self.font_transcription,
             yscrollcommand=trans_scroll.set,
             relief="flat",
             borderwidth=0,
-            bg="white",
-            fg="#1a1a1a",
-            insertbackground="#1a1a1a",
+            padx=10,
+            pady=8,
+            bg=self._C_SURFACE,
+            fg=self._C_TEXT,
+            insertbackground=self._C_ACCENT,
+            selectbackground=self._C_BORDER,
+            selectforeground=self._C_TEXT,
         )
         self.transcription_text.pack(side="left", fill="both", expand=True)
         trans_scroll.config(command=self.transcription_text.yview)
 
-        # Buttons row
-        control_frame = ttk.Frame(main_frame)
-        control_frame.grid(row=1, column=0, sticky="ew", pady=(0, 4))
+        # Controls row
+        control_frame = tk.Frame(main_frame, bg=self._C_BG)
+        control_frame.grid(row=1, column=0, sticky="ew", pady=(0, 8))
+
+        self.record_btn = self._mk_btn(
+            control_frame,
+            "● Record",
+            self._toggle_recording,
+            bg=self._C_ACCENT,
+            fg=self._C_BG,
+            bold=True,
+        )
+        self.record_btn.pack(side="left", padx=(0, 6))
+
+        self._mk_btn(control_frame, "Copy", self._copy_transcription).pack(side="left", padx=(0, 4))
+        self._mk_btn(control_frame, "Clear", self._clear_transcription).pack(side="left")
+
+        # Checkboxes (right-aligned)
+        chk_frame = tk.Frame(control_frame, bg=self._C_BG)
+        chk_frame.pack(side="right")
 
         self.auto_record_var = tk.BooleanVar(value=self.auto_record)
-        ttk.Checkbutton(
-            control_frame,
+        tk.Checkbutton(
+            chk_frame,
             text="Auto-record",
             variable=self.auto_record_var,
             command=self._on_auto_record_toggle,
-        ).pack(side="left", padx=(0, 6))
+            bg=self._C_BG,
+            fg=self._C_SUBTEXT,
+            activebackground=self._C_BG,
+            activeforeground=self._C_TEXT,
+            selectcolor=self._C_SURFACE,
+            font=("Ubuntu", 9),
+            relief="flat",
+            borderwidth=0,
+            cursor="hand2",
+        ).pack(side="left", padx=(0, 8))
 
         auto_copy_saved = self.state.get("auto_copy", False)
         self.auto_copy_var = tk.BooleanVar(value=auto_copy_saved)
-        ttk.Checkbutton(
-            control_frame,
+        tk.Checkbutton(
+            chk_frame,
             text="Auto-copy",
             variable=self.auto_copy_var,
             command=self._on_auto_copy_toggle,
-        ).pack(side="left", padx=(0, 10))
+            bg=self._C_BG,
+            fg=self._C_SUBTEXT,
+            activebackground=self._C_BG,
+            activeforeground=self._C_TEXT,
+            selectcolor=self._C_SURFACE,
+            font=("Ubuntu", 9),
+            relief="flat",
+            borderwidth=0,
+            cursor="hand2",
+        ).pack(side="left")
 
-        self.record_btn = ttk.Button(
-            control_frame, text="Start Recording", command=self._toggle_recording
-        )
-        self.record_btn.pack(side="left", padx=(0, 5))
-        ttk.Button(control_frame, text="Copy", command=self._copy_transcription).pack(
-            side="left", padx=(0, 5)
-        )
-        ttk.Button(control_frame, text="Clear", command=self._clear_transcription).pack(side="left")
-
-        # Status bar (single line at bottom)
-        self.status_label = ttk.Label(
-            main_frame,
+        # Status bar
+        status_frame = tk.Frame(main_frame, bg=self._C_SURFACE, padx=1, pady=1)
+        status_frame.grid(row=2, column=0, sticky="ew")
+        self.status_label = tk.Label(
+            status_frame,
             text="Initializing...",
             font=self.font_status,
-            relief="sunken",
+            bg=self._C_SURFACE,
+            fg=self._C_SUBTEXT,
             anchor="w",
-            padding=(4, 2),
+            padx=8,
+            pady=4,
         )
-        self.status_label.grid(row=2, column=0, sticky="ew")
+        self.status_label.pack(fill="x")
 
     def _setup_keyboard_shortcuts(self) -> None:
         self.root.bind("<Control-x>", lambda e: self._cut_transcription())
@@ -545,17 +613,17 @@ class TranscriptionGUI:
 
     def _refresh_status_display(self) -> None:
         text = ", ".join(self._active_statuses) if self._active_statuses else "idle"
-        self.status_label.config(text=text, foreground="black")
+        self.status_label.config(text=text, fg=self._C_SUBTEXT)
 
-    def _set_status(self, status: str, color: str = "black") -> None:
+    def _set_status(self, status: str, color: str | None = None) -> None:
         """Override status display with an arbitrary message (e.g. errors, transient info)."""
-        self.status_label.config(text=status, foreground=color)
+        self.status_label.config(text=status, fg=color or self._C_SUBTEXT)
 
     def _update_record_button(self) -> None:
         if self.is_recording:
-            self.record_btn.config(text="Stop Recording", style="Accent.TButton")
+            self.record_btn.config(text="■ Stop", bg=self._C_DANGER, fg=self._C_BG)
         else:
-            self.record_btn.config(text="Start Recording", style="TButton")
+            self.record_btn.config(text="● Record", bg=self._C_ACCENT, fg=self._C_BG)
 
     def _toggle_recording(self) -> None:
         """Toggle recording state."""
@@ -595,7 +663,7 @@ class TranscriptionGUI:
             self.root.clipboard_clear()
             self.root.clipboard_append(text)
             self._log("📋 Copied to clipboard")
-            self._set_status("✓ Copied to clipboard", "blue")
+            self._set_status("✓ Copied to clipboard", self._C_ACCENT)
 
     def _cut_transcription(self) -> None:
         """Cut transcription (copy and clear selection or all)."""
@@ -709,7 +777,7 @@ class TranscriptionGUI:
         except Exception as e:
             self._log(f"❌ Failed to load VAD detector: {e}")
             self._remove_status("loading")
-            self._set_status("❌ VAD load failed", "red")
+            self._set_status("❌ VAD load failed", self._C_DANGER)
             return
 
         # Create VAD config
@@ -765,7 +833,7 @@ class TranscriptionGUI:
         except Exception as e:
             self._log(f"❌ Failed to initialize audio stream: {e}")
             self._remove_status("loading")
-            self._set_status("❌ Audio init failed", "red")
+            self._set_status("❌ Audio init failed", self._C_DANGER)
             return
 
         # Start audio stream in background
