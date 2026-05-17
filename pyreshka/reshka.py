@@ -470,6 +470,7 @@ class TranscriptionGUI:
         if _icon_path.exists():
             _icon = tk.PhotoImage(file=str(_icon_path))
             self.root.iconphoto(True, _icon)
+        self.root.bind("<Escape>", lambda e: self._on_close())
         self.root.bind("<Control-m>", lambda e: self._toggle_recording())
         self.root.bind("<Control-c>", lambda e: self._copy_transcription())
         self.root.bind("<Control-x>", lambda e: self._cut_transcription())
@@ -543,6 +544,7 @@ class TranscriptionGUI:
         )
         self.transcription_text.pack(side="left", fill="both", expand=True)
         trans_scroll.config(command=self.transcription_text.yview)
+        self.transcription_text.bind("<Delete>", self._on_delete_key)
 
         # Controls row
         control_frame = tk.Frame(main_frame, bg=self._C_BG)
@@ -616,8 +618,7 @@ class TranscriptionGUI:
         self.status_label.pack(fill="x")
 
     def _setup_keyboard_shortcuts(self) -> None:
-        self.root.bind("<Control-x>", lambda e: self._cut_transcription())
-        self.root.bind("<Control-X>", lambda e: self._clear_transcription())
+        pass
 
     def _log(self, message: str) -> None:
         debug_log(f"[ui] {message}")
@@ -686,7 +687,18 @@ class TranscriptionGUI:
         debug_log("recording stopped")
 
     def _copy_transcription(self) -> None:
-        """Copy transcription to clipboard."""
+        """Copy selection (if any) or full transcription to clipboard."""
+        try:
+            selection = self.transcription_text.tag_ranges("sel")
+            if selection:
+                text = self.transcription_text.get("sel.first", "sel.last")
+                if text:
+                    self.root.clipboard_clear()
+                    self.root.clipboard_append(text)
+                    self._log("📋 Copied selection to clipboard")
+                    return
+        except tk.TclError:
+            pass
         text = self.transcription_text.get("1.0", "end-1c").strip()
         if text:
             self.root.clipboard_clear()
@@ -695,27 +707,43 @@ class TranscriptionGUI:
             self._set_status("✓ Copied to clipboard", self._C_ACCENT)
 
     def _cut_transcription(self) -> None:
-        """Cut transcription (copy and clear selection or all)."""
+        """Cut selection (if any) or full transcription to clipboard."""
         try:
-            # Try to get selection first
             selection = self.transcription_text.tag_ranges("sel")
             if selection:
                 selected_text = self.transcription_text.get("sel.first", "sel.last")
                 if selected_text:
                     self.root.clipboard_clear()
                     self.root.clipboard_append(selected_text)
+                    self.transcription_text.delete("sel.first", "sel.last")
                     self._log("✂️ Cut selection to clipboard")
                     return
         except tk.TclError:
             pass
 
-        # No selection, copy all
-        self._copy_transcription()
+        # No selection — cut all
+        text = self.transcription_text.get("1.0", "end-1c").strip()
+        if text:
+            self.root.clipboard_clear()
+            self.root.clipboard_append(text)
+            self.transcription_text.delete("1.0", "end")
+            self._log("✂️ Cut all to clipboard")
+            self._set_status("✓ Cut to clipboard", self._C_ACCENT)
 
     def _clear_transcription(self) -> None:
         """Clear the transcription buffer."""
         self.transcription_text.delete("1.0", "end")
         self._log("🗑️ Transcription cleared")
+
+    def _on_delete_key(self, event: tk.Event) -> str | None:
+        """Delete key: clear all when no selection, otherwise let default handle it."""
+        try:
+            if self.transcription_text.tag_ranges("sel"):
+                return None  # selection exists — let default delete it
+        except tk.TclError:
+            pass
+        self._clear_transcription()
+        return "break"  # suppress default single-char delete
 
     def _queue_audio_processing(self, audio_data: np.ndarray) -> None:
         """Called from audio thread when speech ends — enqueue for main thread."""
