@@ -397,7 +397,9 @@ class TranscriptionGUI:
         self.full_transcription = ""
         self._audio_queue: queue.Queue[np.ndarray] = queue.Queue()
         self._result_queue: queue.Queue[tuple[str | None, Any]] = queue.Queue()
-        self._active_statuses: list[str] = []
+        self._recording_state: str = "idle"  # "idle" | "listening" | "speech"
+        self._api_active: bool = False
+        self._initializing: bool = False
 
         self._setup_root()
         self._setup_ui()
@@ -602,18 +604,28 @@ class TranscriptionGUI:
     def _log(self, message: str) -> None:
         debug_log(f"[ui] {message}")
 
-    def _add_status(self, key: str) -> None:
-        self._active_statuses.append(key)
+    def _set_recording_state(self, state: str) -> None:
+        self._recording_state = state
         self._refresh_status_display()
 
-    def _remove_status(self, key: str) -> None:
-        with suppress(ValueError):
-            self._active_statuses.remove(key)
+    def _set_api_active(self, active: bool) -> None:
+        self._api_active = active
         self._refresh_status_display()
 
     def _refresh_status_display(self) -> None:
-        text = ", ".join(self._active_statuses) if self._active_statuses else "idle"
-        self.status_label.config(text=text, fg=self._C_SUBTEXT)
+        if self._initializing:
+            text, color = "loading...", self._C_SUBTEXT
+        elif self._recording_state == "speech":
+            text, color = "speech", self._C_GREEN
+        elif self._recording_state == "listening":
+            text, color = "listening", self._C_ACCENT
+        else:
+            text, color = "idle", self._C_SUBTEXT
+
+        if self._api_active:
+            text += " · api…"
+
+        self.status_label.config(text=text, fg=color)
 
     def _set_status(self, status: str, color: str | None = None) -> None:
         """Override status display with an arbitrary message (e.g. errors, transient info)."""
@@ -641,7 +653,7 @@ class TranscriptionGUI:
         self.is_recording = True
         self.context.is_recording = True
         self._update_record_button()
-        self._add_status("listening")
+        self._set_recording_state("listening")
         self._log("▶️ Recording started")
         debug_log("recording started")
 
@@ -651,8 +663,7 @@ class TranscriptionGUI:
         if self.context:
             self.context.is_recording = False
         self._update_record_button()
-        self._remove_status("listening")
-        self._remove_status("speech")
+        self._set_recording_state("idle")
         self._log("⏹️ Recording stopped")
         debug_log("recording stopped")
 
@@ -699,7 +710,7 @@ class TranscriptionGUI:
         """Main-thread poller — spawns worker threads and applies transcription results."""
         try:
             audio_data = self._audio_queue.get_nowait()
-            self._add_status("api")  # already on main thread — no root.after needed
+            self._set_api_active(True)
             threading.Thread(
                 target=self._transcription_worker, args=(audio_data,), daemon=True
             ).start()
@@ -767,7 +778,8 @@ class TranscriptionGUI:
 
     def setup(self) -> None:
         """Initialize the transcription system."""
-        self._add_status("loading")
+        self._initializing = True
+        self._refresh_status_display()
         self._log("📦 Loading Silero VAD detector...")
 
         # Load VAD detector
@@ -776,7 +788,7 @@ class TranscriptionGUI:
             self._log("✓ VAD detector loaded")
         except Exception as e:
             self._log(f"❌ Failed to load VAD detector: {e}")
-            self._remove_status("loading")
+            self._initializing = False
             self._set_status("❌ VAD load failed", self._C_DANGER)
             return
 
@@ -809,10 +821,10 @@ class TranscriptionGUI:
             self.root.after(0, lambda m=msg: self._log(m))  # type: ignore[misc]
 
         def _on_speech_start() -> None:
-            self.root.after(0, lambda: self._add_status("speech"))
+            self.root.after(0, lambda: self._set_recording_state("speech"))
 
         def _on_speech_end() -> None:
-            self.root.after(0, lambda: self._remove_status("speech"))
+            self.root.after(0, lambda: self._set_recording_state("listening"))
 
         # callbacks are called from the audio callback thread — must dispatch to main thread
         self.audio_handler.on_status_change = _on_status
@@ -832,7 +844,7 @@ class TranscriptionGUI:
             self._log("✓ Audio stream initialized")
         except Exception as e:
             self._log(f"❌ Failed to initialize audio stream: {e}")
-            self._remove_status("loading")
+            self._initializing = False
             self._set_status("❌ Audio init failed", self._C_DANGER)
             return
 
@@ -843,7 +855,8 @@ class TranscriptionGUI:
         # Start main-thread poller for transcription queue
         self.root.after(50, self._poll_audio_queue)
 
-        self._remove_status("loading")
+        self._initializing = False
+        self._refresh_status_display()
         self._log("✓ System ready")
 
         # Auto-record if enabled
@@ -878,7 +891,7 @@ class TranscriptionGUI:
             debug_log(f"API call failed: {e}")
             err_msg = f"❌ Transcription error: {e}"
             self.root.after(0, lambda m=err_msg: self._log(m))  # type: ignore[misc]
-            self.root.after(0, lambda: self._remove_status("api"))
+            self.root.after(0, lambda: self._set_api_active(False))
             return
 
         debug_log(f"API call done — raw: {raw_output!r}")
@@ -922,7 +935,7 @@ class TranscriptionGUI:
             debug_log(f"tokens: {usage.prompt_tokens}in / {usage.completion_tokens}out")
             self._log(f"   Tokens: {usage.prompt_tokens}in / {usage.completion_tokens}out")
 
-        self._remove_status("api")
+        self._set_api_active(False)
 
     def run(self) -> None:
         """Start the GUI main loop."""
