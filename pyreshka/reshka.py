@@ -397,6 +397,7 @@ class TranscriptionGUI:
         self.full_transcription = ""
         self._audio_queue: queue.Queue[np.ndarray] = queue.Queue()
         self._result_queue: queue.Queue[tuple[str | None, Any]] = queue.Queue()
+        self._state_queue: queue.Queue[str] = queue.Queue()
         self._recording_state: str = "idle"  # "idle" | "listening" | "speech"
         self._api_active: bool = False
         self._initializing: bool = False
@@ -708,6 +709,15 @@ class TranscriptionGUI:
 
     def _poll_audio_queue(self) -> None:
         """Main-thread poller — spawns worker threads and applies transcription results."""
+        # Drain all pending state transitions from the audio thread
+        while True:
+            try:
+                state = self._state_queue.get_nowait()
+                if self.is_recording:
+                    self._set_recording_state(state)
+            except queue.Empty:
+                break
+
         try:
             audio_data = self._audio_queue.get_nowait()
             self._set_api_active(True)
@@ -821,10 +831,10 @@ class TranscriptionGUI:
             self.root.after(0, lambda m=msg: self._log(m))  # type: ignore[misc]
 
         def _on_speech_start() -> None:
-            self.root.after(0, lambda: self._set_recording_state("speech"))
+            self._state_queue.put("speech")
 
         def _on_speech_end() -> None:
-            self.root.after(0, lambda: self._set_recording_state("listening"))
+            self._state_queue.put("listening")
 
         # callbacks are called from the audio callback thread — must dispatch to main thread
         self.audio_handler.on_status_change = _on_status
