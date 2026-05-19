@@ -254,9 +254,11 @@ class TranscriptionService:
 
     def transcribe(self, audio_data: np.ndarray) -> tuple[str | None, CompletionUsage | None]:
         try:
-            debug_log(f"transcribe: encoding {len(audio_data)} samples ({len(audio_data)*2//1024}KB raw)")
+            debug_log(
+                f"transcribe: encoding {len(audio_data)} samples ({len(audio_data) * 2 // 1024}KB raw)"
+            )
             audio_b64 = AudioConverter.to_base64(audio_data)
-            debug_log(f"transcribe: encoded to {len(audio_b64)//1024}KB base64, sending HTTP")
+            debug_log(f"transcribe: encoded to {len(audio_b64) // 1024}KB base64, sending HTTP")
 
             response = self.client.chat.completions.create(
                 model=self.model_name,
@@ -409,11 +411,14 @@ class TranscriptionGUI:
         self.audio_handler: AudioStreamHandler | None = None
         self.is_recording = False
         self._audio_queue: queue.Queue[np.ndarray] = queue.Queue()
-        self._result_queue: queue.Queue[tuple[str | None, Any]] = queue.Queue()
+        self._result_queue: queue.Queue[tuple[int, str | None, Any]] = queue.Queue()
         self._state_queue: queue.Queue[str] = queue.Queue()
         self._recording_state: str = "idle"  # "idle" | "listening" | "speech"
         self._api_active: bool = False
         self._initializing: bool = False
+        self._seq_counter: int = 0
+        self._next_insert_seq: int = 0
+        self._pending_results: dict[int, tuple[str | None, Any]] = {}
 
         self._setup_root()
         self._setup_ui()
@@ -764,15 +769,21 @@ class TranscriptionGUI:
         try:
             audio_data = self._audio_queue.get_nowait()
             self._set_api_active(True)
+            seq = self._seq_counter
+            self._seq_counter += 1
             threading.Thread(
-                target=self._transcription_worker, args=(audio_data,), daemon=True
+                target=self._transcription_worker, args=(seq, audio_data), daemon=True
             ).start()
         except queue.Empty:
             pass
 
         try:
-            raw_output, usage = self._result_queue.get_nowait()
-            self._apply_transcription_result(raw_output, usage)
+            seq, raw_output, usage = self._result_queue.get_nowait()
+            self._pending_results[seq] = (raw_output, usage)
+            while self._next_insert_seq in self._pending_results:
+                r, u = self._pending_results.pop(self._next_insert_seq)
+                self._apply_transcription_result(r, u)
+                self._next_insert_seq += 1
         except queue.Empty:
             pass
 
@@ -938,26 +949,25 @@ class TranscriptionGUI:
                 self.stream.stop()
             debug_log("Stream loop ended")
 
-    def _transcription_worker(self, audio_data: np.ndarray) -> None:
+    def _transcription_worker(self, seq: int, audio_data: np.ndarray) -> None:
         """Background thread: calls the API and schedules GUI update on main thread."""
         assert self.transcription_service is not None
         max_samples = 30 * SAMPLE_RATE
         if len(audio_data) > max_samples:
-            debug_log(f"audio truncated from {len(audio_data)/SAMPLE_RATE:.1f}s to 30s")
+            debug_log(f"audio truncated from {len(audio_data) / SAMPLE_RATE:.1f}s to 30s")
             audio_data = audio_data[:max_samples]
         duration = len(audio_data) / SAMPLE_RATE
-        debug_log(f"API call start ({duration:.2f}s audio)")
+        debug_log(f"API call start seq={seq} ({duration:.2f}s audio)")
 
         try:
             raw_output, usage = self.transcription_service.transcribe(audio_data)
         except Exception as e:
-            debug_log(f"API call failed: {e}")
-            # Put None so the main-thread poller clears the api status
-            self._result_queue.put((None, None))
+            debug_log(f"API call failed seq={seq}: {e}")
+            self._result_queue.put((seq, None, None))
             return
 
-        debug_log(f"API call done — raw: {raw_output!r}")
-        self._result_queue.put((raw_output, usage))
+        debug_log(f"API call done seq={seq} — raw: {raw_output!r}")
+        self._result_queue.put((seq, raw_output, usage))
 
     @staticmethod
     def _parse_json_response(raw: str) -> str | None:
