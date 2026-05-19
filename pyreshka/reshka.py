@@ -40,6 +40,7 @@ if TYPE_CHECKING:
     import sounddevice as sd
     from openai import OpenAI
     from openai.types import CompletionUsage
+    from openai.types.chat import ChatCompletionContentPartParam
     from pysilero_vad import SileroVoiceActivityDetector
 
 _env_path = Path(__file__).parent / ".env"
@@ -128,6 +129,7 @@ MIN_SPEECH_DURATION_MS = 300
 MIN_SILENCE_DURATION_MS = 700
 SPEECH_PAD_MS = 300
 MAX_SPEECH_DURATION_SEC = 300
+TRANSCRIPTION_CONTEXT_SIZE = 4
 
 SYSTEM_PROMPT = """
 You are a speech transcription system. For each audio input, respond with JSON in this exact format:
@@ -252,7 +254,9 @@ class TranscriptionService:
         self.client = OpenAI(base_url=API_BASE_URL, api_key=api_key)
         self.model_name = model_name
 
-    def transcribe(self, audio_data: np.ndarray) -> tuple[str | None, CompletionUsage | None]:
+    def transcribe(
+        self, audio_data: np.ndarray, prior_context: list[str] | None = None
+    ) -> tuple[str | None, CompletionUsage | None]:
         try:
             debug_log(
                 f"transcribe: encoding {len(audio_data)} samples ({len(audio_data) * 2 // 1024}KB raw)"
@@ -260,21 +264,27 @@ class TranscriptionService:
             audio_b64 = AudioConverter.to_base64(audio_data)
             debug_log(f"transcribe: encoded to {len(audio_b64) // 1024}KB base64, sending HTTP")
 
+            user_content: list[ChatCompletionContentPartParam] = []
+            if prior_context:
+                context_text = "Previous transcript (for continuity only — do not repeat):\n"
+                context_text += "\n".join(f'"{t}"' for t in prior_context)
+                user_content.append({"type": "text", "text": context_text})
+            user_content.extend(
+                [
+                    {"type": "text", "text": "[Audio]"},
+                    {
+                        "type": "input_audio",
+                        "input_audio": {"data": audio_b64, "format": "wav"},
+                    },
+                    {"type": "text", "text": "[/Audio] Response(json):"},
+                ]
+            )
+
             response = self.client.chat.completions.create(
                 model=self.model_name,
                 messages=[
                     {"role": "system", "content": SYSTEM_PROMPT},
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": "[Audio]"},
-                            {
-                                "type": "input_audio",
-                                "input_audio": {"data": audio_b64, "format": "wav"},
-                            },
-                            {"type": "text", "text": "[/Audio] Response(json):"},
-                        ],
-                    },
+                    {"role": "user", "content": user_content},
                 ],
                 user="transcriber_gui",
             )
@@ -419,6 +429,7 @@ class TranscriptionGUI:
         self._seq_counter: int = 0
         self._next_insert_seq: int = 0
         self._pending_results: dict[int, tuple[str | None, Any]] = {}
+        self._recent_transcriptions: list[str] = []
 
         self._setup_root()
         self._setup_ui()
@@ -771,8 +782,11 @@ class TranscriptionGUI:
             self._set_api_active(True)
             seq = self._seq_counter
             self._seq_counter += 1
+            context_snapshot = list(self._recent_transcriptions)
             threading.Thread(
-                target=self._transcription_worker, args=(seq, audio_data), daemon=True
+                target=self._transcription_worker,
+                args=(seq, audio_data, context_snapshot),
+                daemon=True,
             ).start()
         except queue.Empty:
             pass
@@ -949,7 +963,9 @@ class TranscriptionGUI:
                 self.stream.stop()
             debug_log("Stream loop ended")
 
-    def _transcription_worker(self, seq: int, audio_data: np.ndarray) -> None:
+    def _transcription_worker(
+        self, seq: int, audio_data: np.ndarray, prior_context: list[str]
+    ) -> None:
         """Background thread: calls the API and schedules GUI update on main thread."""
         assert self.transcription_service is not None
         max_samples = 30 * SAMPLE_RATE
@@ -960,7 +976,7 @@ class TranscriptionGUI:
         debug_log(f"API call start seq={seq} ({duration:.2f}s audio)")
 
         try:
-            raw_output, usage = self.transcription_service.transcribe(audio_data)
+            raw_output, usage = self.transcription_service.transcribe(audio_data, prior_context)
         except Exception as e:
             debug_log(f"API call failed seq={seq}: {e}")
             self._result_queue.put((seq, None, None))
@@ -993,6 +1009,9 @@ class TranscriptionGUI:
         if transcription_text:
             debug_log(f"transcription: {transcription_text!r}")
             self._append_transcription(transcription_text)
+            self._recent_transcriptions.append(transcription_text)
+            if len(self._recent_transcriptions) > TRANSCRIPTION_CONTEXT_SIZE:
+                self._recent_transcriptions.pop(0)
             self._log(f"✓ Transcribed: {transcription_text}")
             try:
                 with open(self.output_path, "a", encoding="utf-8") as f:
