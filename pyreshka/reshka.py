@@ -18,6 +18,8 @@ import logging
 import os
 import queue
 import re
+import shutil
+import subprocess
 import sys
 import threading
 import tkinter as tk
@@ -431,6 +433,8 @@ class TranscriptionGUI:
         self._pending_results: dict[int, tuple[str | None, Any]] = {}
         self._recent_transcriptions: list[str] = []
 
+        self._auto_type_available = self._check_auto_type_available()
+
         self._setup_root()
         self._setup_ui()
         self._setup_keyboard_shortcuts()
@@ -616,7 +620,26 @@ class TranscriptionGUI:
             relief="flat",
             borderwidth=0,
             cursor="hand2",
-        ).pack(side="left")
+        ).pack(side="left", padx=(0, 8))
+
+        auto_type_saved = self.state.get("auto_type", False) if self._auto_type_available else False
+        self.auto_type_var = tk.BooleanVar(value=auto_type_saved)
+        if self._auto_type_available:
+            tk.Checkbutton(
+                chk_frame,
+                text="Auto-type",
+                variable=self.auto_type_var,
+                command=self._on_auto_type_toggle,
+                bg=self._C_BG,
+                fg=self._C_SUBTEXT,
+                activebackground=self._C_BG,
+                activeforeground=self._C_TEXT,
+                selectcolor=self._C_SURFACE,
+                font=("Ubuntu", 9),
+                relief="flat",
+                borderwidth=0,
+                cursor="hand2",
+            ).pack(side="left")
 
         # Status bar
         status_frame = tk.Frame(main_frame, bg=self._C_SURFACE, padx=1, pady=1)
@@ -840,6 +863,13 @@ class TranscriptionGUI:
         else:
             self.root.destroy()
 
+        if self.auto_type_var.get() and screen_text:
+            threading.Thread(
+                target=self._do_auto_type,
+                args=(screen_text,),
+                daemon=False,
+            ).start()
+
     def _on_auto_record_toggle(self) -> None:
         """Handle auto-record checkbox toggle."""
         self.auto_record = self.auto_record_var.get()
@@ -852,6 +882,35 @@ class TranscriptionGUI:
         self.state["auto_copy"] = self.auto_copy_var.get()
         self._save_state()
         self._log(f"Auto-copy: {'enabled' if self.auto_copy_var.get() else 'disabled'}")
+
+    def _on_auto_type_toggle(self) -> None:
+        self.state["auto_type"] = self.auto_type_var.get()
+        self._save_state()
+        self._log(f"Auto-type: {'enabled' if self.auto_type_var.get() else 'disabled'}")
+
+    @staticmethod
+    def _check_auto_type_available() -> bool:
+        return (
+            sys.platform == "linux"
+            and bool(os.environ.get("WAYLAND_DISPLAY"))
+            and shutil.which("ydotool") is not None
+        )
+
+    def _do_auto_type(self, text: str) -> None:
+        import time
+        time.sleep(0.4)  # let the window disappear and focus return
+        try:
+            result = subprocess.run(
+                ["ydotool", "type", "--key-delay=12", text],
+                check=False,
+                capture_output=True,
+            )
+            if result.returncode != 0:
+                debug_log(f"ydotool type exited {result.returncode}: {result.stderr.decode().strip()}")
+            else:
+                debug_log("auto-type done")
+        except Exception as e:
+            debug_log(f"auto-type failed: {e}")
 
     def setup(self) -> None:
         """Initialize the transcription system."""
@@ -943,6 +1002,9 @@ class TranscriptionGUI:
         self._initializing = False
         self._refresh_status_display()
         self._log("✓ System ready")
+
+        if not self._auto_type_available:
+            debug_log("auto-type unavailable: requires Linux + Wayland + ydotool installed")
 
         # Auto-record if enabled
         if self.auto_record:
