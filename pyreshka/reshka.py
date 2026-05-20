@@ -86,7 +86,6 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
     handlers=[
         logging.StreamHandler(sys.stderr),
-        logging.StreamHandler(_stderr_tee),
     ],
 )
 logger = logging.getLogger("reshka")
@@ -433,7 +432,7 @@ class TranscriptionGUI:
         self._pending_results: dict[int, tuple[str | None, Any]] = {}
         self._recent_transcriptions: list[str] = []
 
-        self._auto_type_available = self._check_auto_type_available()
+        self._auto_paste_available = self._check_auto_paste_available()
 
         self._setup_root()
         self._setup_ui()
@@ -622,14 +621,14 @@ class TranscriptionGUI:
             cursor="hand2",
         ).pack(side="left", padx=(0, 8))
 
-        auto_type_saved = self.state.get("auto_type", False) if self._auto_type_available else False
-        self.auto_type_var = tk.BooleanVar(value=auto_type_saved)
-        if self._auto_type_available:
+        auto_paste_saved = self.state.get("auto_paste", False) if self._auto_paste_available else False
+        self.auto_paste_var = tk.BooleanVar(value=auto_paste_saved)
+        if self._auto_paste_available:
             tk.Checkbutton(
                 chk_frame,
-                text="Auto-type",
-                variable=self.auto_type_var,
-                command=self._on_auto_type_toggle,
+                text="Auto-paste",
+                variable=self.auto_paste_var,
+                command=self._on_auto_paste_toggle,
                 bg=self._C_BG,
                 fg=self._C_SUBTEXT,
                 activebackground=self._C_BG,
@@ -654,7 +653,32 @@ class TranscriptionGUI:
             padx=8,
             pady=4,
         )
-        self.status_label.pack(fill="x")
+        self.status_label.pack(side="left", fill="x", expand=True)
+
+        # Paste key selector (right side of status bar, only shown when auto-paste available)
+        if self._auto_paste_available:
+            paste_key_frame = tk.Frame(status_frame, bg=self._C_SURFACE)
+            paste_key_frame.pack(side="right", padx=(0, 8))
+            self.paste_key_var = tk.StringVar(value=self.state.get("paste_key", "ctrl+v"))
+            for label, val in [("Ctrl+V", "ctrl+v"), ("Ctrl+Shift+V", "ctrl+shift+v")]:
+                tk.Radiobutton(
+                    paste_key_frame,
+                    text=label,
+                    variable=self.paste_key_var,
+                    value=val,
+                    command=self._on_paste_key_change,
+                    bg=self._C_SURFACE,
+                    fg=self._C_SUBTEXT,
+                    activebackground=self._C_SURFACE,
+                    activeforeground=self._C_TEXT,
+                    selectcolor=self._C_SURFACE,
+                    font=("Ubuntu", 9),
+                    relief="flat",
+                    borderwidth=0,
+                    cursor="hand2",
+                ).pack(side="left", padx=(0, 6))
+        else:
+            self.paste_key_var = tk.StringVar(value=self.state.get("paste_key", "ctrl+v"))
 
     def _setup_keyboard_shortcuts(self) -> None:
         pass
@@ -853,7 +877,18 @@ class TranscriptionGUI:
                 self.stream.abort()
 
         screen_text = self.transcription_text.get("1.0", "end-1c").strip()
-        if self.auto_copy_var.get() and screen_text:
+        do_paste = self.auto_paste_var.get() and bool(screen_text)
+        if do_paste:
+            # wl-copy will own the clipboard; no need for tkinter clipboard here
+            self.root.withdraw()
+            self.root.after(300, self.root.destroy)
+            self._log("📋 Auto-paste: clipboard handed to wl-copy")
+            threading.Thread(
+                target=self._do_auto_paste,
+                args=(self.paste_key_var.get(), screen_text),
+                daemon=False,
+            ).start()
+        elif self.auto_copy_var.get() and screen_text:
             self.root.clipboard_clear()
             self.root.clipboard_append(screen_text)
             self.root.update()  # flush so the selection is registered
@@ -862,13 +897,6 @@ class TranscriptionGUI:
             self.root.after(300, self.root.destroy)
         else:
             self.root.destroy()
-
-        if self.auto_type_var.get() and screen_text:
-            threading.Thread(
-                target=self._do_auto_type,
-                args=(screen_text,),
-                daemon=False,
-            ).start()
 
     def _on_auto_record_toggle(self) -> None:
         """Handle auto-record checkbox toggle."""
@@ -883,34 +911,46 @@ class TranscriptionGUI:
         self._save_state()
         self._log(f"Auto-copy: {'enabled' if self.auto_copy_var.get() else 'disabled'}")
 
-    def _on_auto_type_toggle(self) -> None:
-        self.state["auto_type"] = self.auto_type_var.get()
+    def _on_auto_paste_toggle(self) -> None:
+        enabled = self.auto_paste_var.get()
+        if enabled:
+            # auto-paste requires clipboard; force auto-copy on
+            self.auto_copy_var.set(True)
+            self.state["auto_copy"] = True
+        self.state["auto_paste"] = enabled
         self._save_state()
-        self._log(f"Auto-type: {'enabled' if self.auto_type_var.get() else 'disabled'}")
+        self._log(f"Auto-paste: {'enabled' if enabled else 'disabled'}")
+
+    def _on_paste_key_change(self) -> None:
+        self.state["paste_key"] = self.paste_key_var.get()
+        self._save_state()
 
     @staticmethod
-    def _check_auto_type_available() -> bool:
+    def _check_auto_paste_available() -> bool:
         return (
             sys.platform == "linux"
             and bool(os.environ.get("WAYLAND_DISPLAY"))
             and shutil.which("ydotool") is not None
+            and shutil.which("wl-copy") is not None
         )
 
-    def _do_auto_type(self, text: str) -> None:
+    def _do_auto_paste(self, key: str, text: str) -> None:
         import time
-        time.sleep(0.4)  # let the window disappear and focus return
+        # wl-copy holds clipboard content in its own process; tkinter's clipboard
+        # dies when the window is destroyed, so we need this to survive the close.
+        wl = subprocess.Popen(["wl-copy", "--", text])
+        debug_log(f"wl-copy started (pid {wl.pid})")
+        time.sleep(0.5)  # let window close and focus return to target
+        cmd = ["ydotool", "key", key]
+        debug_log(f"auto-paste cmd: {cmd}")
         try:
-            result = subprocess.run(
-                ["ydotool", "type", "--key-delay=12", text],
-                check=False,
-                capture_output=True,
-            )
+            result = subprocess.run(cmd, check=False, capture_output=True)
             if result.returncode != 0:
-                debug_log(f"ydotool type exited {result.returncode}: {result.stderr.decode().strip()}")
+                debug_log(f"ydotool key exited {result.returncode}: {result.stderr.decode().strip()}")
             else:
-                debug_log("auto-type done")
+                debug_log("auto-paste done")
         except Exception as e:
-            debug_log(f"auto-type failed: {e}")
+            debug_log(f"auto-paste failed: {e}")
 
     def setup(self) -> None:
         """Initialize the transcription system."""
@@ -1003,8 +1043,8 @@ class TranscriptionGUI:
         self._refresh_status_display()
         self._log("✓ System ready")
 
-        if not self._auto_type_available:
-            debug_log("auto-type unavailable: requires Linux + Wayland + ydotool installed")
+        if not self._auto_paste_available:
+            debug_log("auto-paste unavailable: requires Linux + Wayland + ydotool installed")
 
         # Auto-record if enabled
         if self.auto_record:
