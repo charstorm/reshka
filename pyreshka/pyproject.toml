@@ -18,7 +18,7 @@ dependencies = [
 ]
 
 [project.scripts]
-reshka = "reshka:main"
+reshka = "reshka_tui:main"
 reshka-tui = "reshka_tui:main"
 
 [dependency-groups]
