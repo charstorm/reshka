@@ -389,6 +389,7 @@ class ReshkaTUI(App[None]):
         height: 1fr;
         margin: 1 1 0 1;
         padding: 0 1;
+        overflow-y: auto;
         scrollbar-color: $primary;
         scrollbar-background: $surface;
     }
