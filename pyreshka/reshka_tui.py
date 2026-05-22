@@ -39,6 +39,7 @@ from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal
+from textual.theme import BUILTIN_THEMES
 from textual.widgets import Checkbox, RichLog, Static
 
 if TYPE_CHECKING:
@@ -363,7 +364,7 @@ class AudioStreamHandler:
 # TUI APPLICATION
 # ============================================================================
 
-_HINTS = "^M Record  ^C Copy  ^X Cut  ^L Clear  Esc Quit"
+_HINTS = "^M Record  ^C Copy  ^X Cut  ^L Clear  ^T Theme  Esc Quit"
 
 _C_ACCENT = "#89b4fa"
 _C_GREEN = "#a6e3a1"
@@ -377,31 +378,31 @@ class ReshkaTUI(App[None]):
 
     CSS = """
     Screen {
-        background: #1e1e2e;
+        background: $background;
         layers: base;
     }
 
     #transcript {
-        border: solid #45475a;
-        background: #252535;
-        color: #cdd6f4;
+        border: solid $primary;
+        background: $surface;
+        color: $foreground;
         height: 1fr;
         margin: 1 1 0 1;
         padding: 0 1;
-        scrollbar-color: #45475a;
-        scrollbar-background: #252535;
+        scrollbar-color: $primary;
+        scrollbar-background: $surface;
     }
 
     #controls {
         height: 3;
-        background: #1e1e2e;
+        background: $background;
         margin: 0 1;
         align: left middle;
     }
 
     #controls Checkbox {
-        background: #1e1e2e;
-        color: #a6adc8;
+        background: $background;
+        color: $text-muted;
         margin: 0 2 0 0;
         padding: 0 1;
         border: none;
@@ -413,8 +414,8 @@ class ReshkaTUI(App[None]):
 
     #status {
         height: 1;
-        background: #313244;
-        color: #a6adc8;
+        background: $panel;
+        color: $text-muted;
         padding: 0 1;
         dock: bottom;
     }
@@ -425,6 +426,7 @@ class ReshkaTUI(App[None]):
         Binding("ctrl+c", "copy_transcript", "Copy", show=False),
         Binding("ctrl+x", "cut_transcript", "Cut", show=False),
         Binding("ctrl+l", "clear_transcript", "Clear", show=False),
+        Binding("ctrl+t", "cycle_theme", "Theme", show=False),
         Binding("escape", "quit", "Quit", show=False),
     ]
 
@@ -494,7 +496,27 @@ class ReshkaTUI(App[None]):
     # ── lifecycle ─────────────────────────────────────────────────────────────
 
     def on_mount(self) -> None:
+        if saved_theme := self._state.get("theme"):
+            with suppress(Exception):
+                self.theme = saved_theme
         self._animate_loading_bar()
+
+    def _c(self, role: str, fallback: str) -> str:
+        with suppress(Exception):
+            v = self.get_css_variables().get(role, "")
+            if v and v.startswith("#"):
+                return v
+        return fallback
+
+    def action_cycle_theme(self) -> None:
+        names = list(BUILTIN_THEMES.keys())
+        current = self.theme
+        idx = names.index(current) if current in names else -1
+        next_name = names[(idx + 1) % len(names)]
+        self.theme = next_name
+        self._state["theme"] = next_name
+        self._save_state()
+        self._flash_status(f"theme: {next_name}", duration=2.0)
 
     def _animate_loading_bar(self) -> None:
         width = max(20, self.size.width - 4)
@@ -503,7 +525,7 @@ class ReshkaTUI(App[None]):
 
         def step(i: int) -> None:
             filled = int(width * i / steps)
-            self._raw_status("█" * filled, color=_C_ACCENT)
+            self._raw_status("█" * filled, color=self._c("primary", _C_ACCENT))
             if i < steps:
                 self.set_timer(interval, lambda: step(i + 1))
             else:
@@ -513,7 +535,7 @@ class ReshkaTUI(App[None]):
 
     def _do_setup(self) -> None:
         """Runs on the main thread — imports heavy deps, then hands off to a worker thread."""
-        self._raw_status("loading…", color=_C_SUBTEXT)
+        self._raw_status("loading…", color=self._c("text-muted", _C_SUBTEXT))
         threading.Thread(target=self._setup_worker, daemon=True).start()
 
     def _setup_worker(self) -> None:
@@ -701,14 +723,14 @@ class ReshkaTUI(App[None]):
         text = "\n".join(self._transcript_lines).strip()
         if text:
             self._copy_to_clipboard(text)
-            self._flash_status("copied", color=_C_ACCENT)
+            self._flash_status("copied", color=self._c("primary", _C_ACCENT))
 
     def action_cut_transcript(self) -> None:
         text = "\n".join(self._transcript_lines).strip()
         if text:
             self._copy_to_clipboard(text)
             self._do_clear()
-            self._flash_status("cut to clipboard", color=_C_ACCENT)
+            self._flash_status("cut to clipboard", color=self._c("primary", _C_ACCENT))
 
     def action_clear_transcript(self) -> None:
         self._do_clear()
@@ -755,10 +777,10 @@ class ReshkaTUI(App[None]):
 
     def _refresh_status(self) -> None:
         color = {
-            "speech": _C_GREEN,
-            "listening": _C_ACCENT,
-            "idle": _C_SUBTEXT,
-        }.get(self._recording_state, _C_SUBTEXT)
+            "speech": self._c("success", _C_GREEN),
+            "listening": self._c("primary", _C_ACCENT),
+            "idle": self._c("text-muted", _C_SUBTEXT),
+        }.get(self._recording_state, self._c("text-muted", _C_SUBTEXT))
         label = self._recording_state
         if self._api_active:
             label += " · api…"
@@ -775,7 +797,7 @@ class ReshkaTUI(App[None]):
         t = Text(overflow="ellipsis", no_wrap=True)
         t.append(state_text, style=state_color)
         t.append(" " * gap)
-        t.append(hints, style="#585b70")
+        t.append(hints, style=self._c("text-disabled", _C_SUBTEXT))
         self.query_one("#status", Static).update(t)
 
     def _raw_status(self, text: str, *, color: str = _C_SUBTEXT) -> None:
