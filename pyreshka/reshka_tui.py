@@ -382,16 +382,12 @@ class ReshkaTUI(App[None]):
         layers: base;
     }
 
-    #transcript {
-        border: solid $primary;
-        background: $surface;
-        color: $foreground;
-        height: 1fr;
-        margin: 1 1 0 1;
+    #hints {
+        height: 1;
+        background: $panel;
+        color: $text-muted;
         padding: 0 1;
-        overflow-y: auto;
-        scrollbar-color: $primary;
-        scrollbar-background: $surface;
+        dock: top;
     }
 
     #controls {
@@ -411,6 +407,18 @@ class ReshkaTUI(App[None]):
 
     #controls Checkbox:focus {
         border: none;
+    }
+
+    #transcript {
+        border: solid $primary;
+        background: $surface;
+        color: $foreground;
+        height: 1fr;
+        margin: 1 1 0 1;
+        padding: 0 1;
+        overflow-y: auto;
+        scrollbar-color: $primary;
+        scrollbar-background: $surface;
     }
 
     #status {
@@ -482,6 +490,7 @@ class ReshkaTUI(App[None]):
     # ── compose ──────────────────────────────────────────────────────────────
 
     def compose(self) -> ComposeResult:
+        yield Static(_HINTS, id="hints")
         yield RichLog(id="transcript", highlight=False, markup=False, wrap=True, min_width=40)
         checkboxes: list[Checkbox] = [
             Checkbox("Auto-record", value=self._state.get("auto_record", False), id="chk_auto_record"),
@@ -792,13 +801,7 @@ class ReshkaTUI(App[None]):
         self.set_timer(duration, self._refresh_status)
 
     def _render_status(self, state_text: str, state_color: str) -> None:
-        width = self.size.width - 2
-        hints = _HINTS
-        gap = max(2, width - len(state_text) - len(hints))
-        t = Text(overflow="ellipsis", no_wrap=True)
-        t.append(state_text, style=state_color)
-        t.append(" " * gap)
-        t.append(hints, style=self._c("text-disabled", _C_SUBTEXT))
+        t = Text(state_text, style=state_color, overflow="ellipsis", no_wrap=True)
         self.query_one("#status", Static).update(t)
 
     def _raw_status(self, text: str, *, color: str = _C_SUBTEXT) -> None:
