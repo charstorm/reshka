@@ -14,10 +14,12 @@ dependencies = [
     "openai",
     "python-dotenv",
     "pyyaml",
+    "textual",
 ]
 
 [project.scripts]
 reshka = "reshka:main"
+reshka-tui = "reshka_tui:main"
 
 [dependency-groups]
 dev = [
