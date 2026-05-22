@@ -13,6 +13,7 @@ dependencies = [
     "pysilero-vad",
     "openai",
     "python-dotenv",
+    "pyyaml",
 ]
 
 [project.scripts]
