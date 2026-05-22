@@ -25,6 +25,7 @@ import shutil
 import subprocess
 import sys
 import threading
+import time
 import wave
 from collections import deque
 from collections.abc import Callable
@@ -40,7 +41,7 @@ from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal
 from textual.theme import BUILTIN_THEMES
-from textual.widgets import Checkbox, RichLog, Static
+from textual.widgets import Checkbox, Static, TextArea
 
 if TYPE_CHECKING:
     import numpy as np
@@ -460,6 +461,12 @@ class ReshkaTUI(App[None]):
         self._api_active = False
         self._transcript_lines: list[str] = []
 
+        # Timing
+        self._speech_start_time: float | None = None
+        self._last_speech_duration: float | None = None
+        self._api_start_time: float | None = None
+        self._last_api_latency: float | None = None
+
         # Threading
         self._seq_counter = 0
         self._next_insert_seq = 0
@@ -491,7 +498,7 @@ class ReshkaTUI(App[None]):
 
     def compose(self) -> ComposeResult:
         yield Static(_HINTS, id="hints")
-        yield RichLog(id="transcript", highlight=False, markup=False, wrap=True, min_width=40)
+        yield TextArea(id="transcript", show_line_numbers=False)
         checkboxes: list[Checkbox] = [
             Checkbox("Auto-record", value=self._state.get("auto_record", False), id="chk_auto_record"),
             Checkbox("Auto-copy", value=self._state.get("auto_copy", False), id="chk_auto_copy"),
@@ -634,6 +641,7 @@ class ReshkaTUI(App[None]):
         try:
             audio = self._audio_queue.get_nowait()
             self._api_active = True
+            self._api_start_time = time.monotonic()
             self._refresh_status()
             seq = self._seq_counter
             self._seq_counter += 1
@@ -672,7 +680,9 @@ class ReshkaTUI(App[None]):
         text = self._parse_json(raw) if raw else None
         if text:
             self._transcript_lines.append(text)
-            self.query_one("#transcript", RichLog).write(text)
+            ta = self.query_one("#transcript", TextArea)
+            ta.insert(("\n" if ta.text else "") + text, location=ta.document.end)
+            ta.move_cursor(ta.document.end, select=False)
             with suppress(Exception):
                 with open(self._output_path, "a", encoding="utf-8") as f:
                     f.write(text + "\n")
@@ -682,6 +692,9 @@ class ReshkaTUI(App[None]):
             logger.debug("no transcription in response")
         if usage:
             logger.debug("tokens: %sin / %sout", usage.prompt_tokens, usage.completion_tokens)
+        if self._api_start_time is not None:
+            self._last_api_latency = time.monotonic() - self._api_start_time
+            self._api_start_time = None
         self._api_active = False
         self._refresh_status()
 
@@ -730,13 +743,13 @@ class ReshkaTUI(App[None]):
     # ── transcript actions ────────────────────────────────────────────────────
 
     def action_copy_transcript(self) -> None:
-        text = "\n".join(self._transcript_lines).strip()
+        text = self.query_one("#transcript", TextArea).text.strip()
         if text:
             self._copy_to_clipboard(text)
             self._flash_status("copied", color=self._c("primary", _C_ACCENT))
 
     def action_cut_transcript(self) -> None:
-        text = "\n".join(self._transcript_lines).strip()
+        text = self.query_one("#transcript", TextArea).text.strip()
         if text:
             self._copy_to_clipboard(text)
             self._do_clear()
@@ -747,7 +760,7 @@ class ReshkaTUI(App[None]):
 
     def _do_clear(self) -> None:
         self._transcript_lines.clear()
-        self.query_one("#transcript", RichLog).clear()
+        self.query_one("#transcript", TextArea).load_text("")
 
     @staticmethod
     def _copy_to_clipboard(text: str) -> None:
@@ -782,6 +795,10 @@ class ReshkaTUI(App[None]):
     # ── status bar ────────────────────────────────────────────────────────────
 
     def _set_recording_state(self, state: str) -> None:
+        if state == "speech":
+            self._speech_start_time = time.monotonic()
+        elif state == "listening" and self._speech_start_time is not None:
+            self._last_speech_duration = time.monotonic() - self._speech_start_time
         self._recording_state = state
         self._refresh_status()
 
@@ -801,7 +818,19 @@ class ReshkaTUI(App[None]):
         self.set_timer(duration, self._refresh_status)
 
     def _render_status(self, state_text: str, state_color: str) -> None:
-        t = Text(state_text, style=state_color, overflow="ellipsis", no_wrap=True)
+        timing_parts: list[str] = []
+        if self._last_speech_duration is not None:
+            timing_parts.append(f"audio: {int(self._last_speech_duration * 1000)}ms")
+        if self._last_api_latency is not None:
+            timing_parts.append(f"api: {int(self._last_api_latency * 1000)}ms")
+        timing = "  ".join(timing_parts)
+
+        t = Text(overflow="ellipsis", no_wrap=True)
+        t.append(state_text, style=state_color)
+        if timing:
+            gap = max(2, self.size.width - 2 - len(state_text) - len(timing))
+            t.append(" " * gap)
+            t.append(timing, style=self._c("text-disabled", _C_SUBTEXT))
         self.query_one("#status", Static).update(t)
 
     def _raw_status(self, text: str, *, color: str = _C_SUBTEXT) -> None:
