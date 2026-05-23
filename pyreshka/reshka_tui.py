@@ -459,8 +459,6 @@ class ReshkaTUI(App[None]):
         self._is_recording = False
         self._recording_state = "idle"
         self._api_active = False
-        self._transcript_lines: list[str] = []
-
         # Timing
         self._speech_start_time: float | None = None
         self._last_speech_duration: float | None = None
@@ -679,7 +677,6 @@ class ReshkaTUI(App[None]):
     def _apply_result(self, raw: str | None, usage: Any) -> None:
         text = self._parse_json(raw) if raw else None
         if text:
-            self._transcript_lines.append(text)
             ta = self.query_one("#transcript", TextArea)
             ta.insert(("\n" if ta.text else "") + text, location=ta.document.end)
             ta.move_cursor(ta.document.end, select=False)
@@ -687,7 +684,7 @@ class ReshkaTUI(App[None]):
                 with open(self._output_path, "a", encoding="utf-8") as f:
                     f.write(text + "\n")
             if self._state.get("auto_copy"):
-                self._copy_to_clipboard("\n".join(self._transcript_lines))
+                self._copy_to_clipboard(ta.text.strip())
         else:
             logger.debug("no transcription in response")
         if usage:
@@ -712,7 +709,7 @@ class ReshkaTUI(App[None]):
     def _context_words(self) -> list[str]:
         seen: set[str] = set()
         result: list[str] = []
-        for w in re.findall(r"[a-zA-Z']+", "\n".join(self._transcript_lines)):
+        for w in re.findall(r"[a-zA-Z']+", self.query_one("#transcript", TextArea).text):
             key = w.lower()
             if len(key) > 2 and key not in seen:
                 seen.add(key)
@@ -759,7 +756,6 @@ class ReshkaTUI(App[None]):
         self._do_clear()
 
     def _do_clear(self) -> None:
-        self._transcript_lines.clear()
         self.query_one("#transcript", TextArea).load_text("")
 
     @staticmethod
@@ -840,7 +836,7 @@ class ReshkaTUI(App[None]):
     # ── quit ─────────────────────────────────────────────────────────────────
 
     def action_quit(self) -> None:
-        screen_text = "\n".join(self._transcript_lines).strip()
+        screen_text = self.query_one("#transcript", TextArea).text.strip()
 
         if self._auto_paste_available and self._state.get("auto_paste") and screen_text:
             threading.Thread(
