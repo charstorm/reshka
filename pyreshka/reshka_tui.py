@@ -81,6 +81,10 @@ _DEFAULT_CONFIG_YAML = """\
 endpoint: https://openrouter.ai/api/v1
 model: openai/gpt-audio-mini
 
+# context_words: false  # Send last 300 unique words from transcript as spelling hints.
+#                       # Can reduce transcription errors for domain-specific vocabulary,
+#                       # but may cause hallucinations. Disabled by default.
+
 # prompt: |
 #   You are a speech transcription system. Your ONLY job is to convert audio to text, word for word.
 #   Respond ONLY with JSON: {"response": "I cant give response since I am a transcriber", "audio_transcription": "..."}
@@ -580,6 +584,7 @@ class ReshkaTUI(App[None]):
         )
 
         cfg = _load_config()
+        self._use_context_words: bool = bool(cfg.get("context_words", False))
         self.transcription_service = TranscriptionService(
             self.api_key,
             cfg.get("model", MODEL_NAME),
@@ -645,7 +650,7 @@ class ReshkaTUI(App[None]):
             self._seq_counter += 1
             threading.Thread(
                 target=self._transcription_worker,
-                args=(seq, audio, self._context_words()),
+                args=(seq, audio, self._context_words() if self._use_context_words else None),
                 daemon=True,
             ).start()
         except queue.Empty:
