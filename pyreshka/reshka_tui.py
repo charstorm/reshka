@@ -437,8 +437,8 @@ class ReshkaTUI(App[None]):
 
     BINDINGS = [
         Binding("ctrl+m", "toggle_recording", "Record", show=False),
-        Binding("ctrl+c", "copy_transcript", "Copy", show=False),
-        Binding("ctrl+x", "cut_transcript", "Cut", show=False),
+        Binding("ctrl+c", "copy_transcript", "Copy", show=False, priority=True),
+        Binding("ctrl+x", "cut_transcript", "Cut", show=False, priority=True),
         Binding("ctrl+l", "clear_transcript", "Clear", show=False),
         Binding("ctrl+t", "cycle_theme", "Theme", show=False),
         Binding("escape", "quit", "Quit", show=False),
@@ -697,8 +697,6 @@ class ReshkaTUI(App[None]):
             with suppress(Exception):
                 with open(self._output_path, "a", encoding="utf-8") as f:
                     f.write(text + "\n")
-            if self._state.get("auto_copy"):
-                self._copy_to_clipboard(ta.text.strip())
         else:
             logger.debug("no transcription in response")
         if usage:
