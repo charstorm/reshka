@@ -462,7 +462,7 @@ class ReshkaTUI(App[None]):
         # Runtime state
         self._is_recording = False
         self._recording_state = "idle"
-        self._api_active = False
+        self._active_api_count = 0
         # Timing
         self._speech_start_time: float | None = None
         self._last_speech_duration: float | None = None
@@ -643,7 +643,7 @@ class ReshkaTUI(App[None]):
     def _poll_queues(self) -> None:
         try:
             audio = self._audio_queue.get_nowait()
-            self._api_active = True
+            self._active_api_count += 1
             self._api_start_time = time.monotonic()
             self._refresh_status()
             seq = self._seq_counter
@@ -677,7 +677,16 @@ class ReshkaTUI(App[None]):
         except Exception as e:
             logger.debug("worker error seq=%d: %s", seq, e)
             raw, usage = None, None
+        finally:
+            self.call_from_thread(self._on_api_done)
         self._result_queue.put((seq, raw, usage))
+
+    def _on_api_done(self) -> None:
+        if self._api_start_time is not None:
+            self._last_api_latency = time.monotonic() - self._api_start_time
+            self._api_start_time = None
+        self._active_api_count = max(0, self._active_api_count - 1)
+        self._refresh_status()
 
     def _apply_result(self, raw: str | None, usage: Any) -> None:
         text = self._parse_json(raw) if raw else None
@@ -694,11 +703,6 @@ class ReshkaTUI(App[None]):
             logger.debug("no transcription in response")
         if usage:
             logger.debug("tokens: %sin / %sout", usage.prompt_tokens, usage.completion_tokens)
-        if self._api_start_time is not None:
-            self._last_api_latency = time.monotonic() - self._api_start_time
-            self._api_start_time = None
-        self._api_active = False
-        self._refresh_status()
 
     @staticmethod
     def _parse_json(raw: str) -> str | None:
@@ -809,9 +813,9 @@ class ReshkaTUI(App[None]):
             "listening": self._c("primary", _C_ACCENT),
             "idle": self._c("text-muted", _C_SUBTEXT),
         }.get(self._recording_state, self._c("text-muted", _C_SUBTEXT))
-        label = self._recording_state
-        if self._api_active:
-            label += " · api…"
+        label = self._recording_state.ljust(len("listening"))
+        if self._active_api_count > 0:
+            label += f" · api [{self._active_api_count}]"
         self._render_status(label, color)
 
     def _flash_status(self, msg: str, *, color: str = _C_SUBTEXT, duration: float = 1.5) -> None:
