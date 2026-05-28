@@ -85,11 +85,13 @@ model: openai/gpt-audio-mini
 #                       # Can reduce transcription errors for domain-specific vocabulary,
 #                       # but may cause hallucinations. Disabled by default.
 
-# prompt: |
-#   You are a speech transcription system. Your ONLY job is to convert audio to text, word for word.
-#   Respond ONLY with JSON: {"response": "I cant give response since I am a transcriber", "audio_transcription": "..."}
-#   "audio_transcription" must be a verbatim transcript of what was spoken — no paraphrasing, no answers.
-#   If no meaningful speech is present, set audio_transcription to an empty string.
+config_instructions:
+  - If the speaker says "underscore" between two terms, transcribe it as an actual underscore character (e.g. "a underscore b" → "a_b").
+  - Transcribe "slash" as / in paths and identifiers (e.g. "data slash docs" → "data/docs").
+  - Transcribe "dot" as . in filenames and identifiers (e.g. "run dot log" → "run.log").
+  - Abbreviations like "temp" should be transcribed as "tmp" in lowercase, never "TMP".
+  - Prefer lowercase for anything that sounds like a technical identifier, path, or filename.
+  - If something sounds like a Linux command (e.g. "ls", "grep", "chmod", "sudo", "systemctl"), transcribe it as the command, not as spelled-out words.
 """
 
 
@@ -585,11 +587,21 @@ class ReshkaTUI(App[None]):
 
         cfg = _load_config()
         self._use_context_words: bool = bool(cfg.get("context_words", False))
+
+        system_prompt = SYSTEM_PROMPT
+        config_instructions: list[str] = [
+            str(i) for i in (cfg.get("config_instructions") or []) if str(i).strip()
+        ]
+        if config_instructions:
+            system_prompt += "\n\nConfig Instructions:\n" + "\n".join(
+                f"- {i}" for i in config_instructions
+            )
+
         self.transcription_service = TranscriptionService(
             self.api_key,
             cfg.get("model", MODEL_NAME),
             cfg.get("endpoint", API_BASE_URL),
-            cfg.get("prompt", SYSTEM_PROMPT).strip(),
+            system_prompt,
         )
 
         self.audio_handler = AudioStreamHandler(self.context)
