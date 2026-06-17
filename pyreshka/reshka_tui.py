@@ -389,6 +389,10 @@ class ReshkaTUI(App[None]):
         layers: base;
     }
 
+    Screen.loading {
+        background: black;
+    }
+
     #hints {
         height: 1;
         background: $panel;
@@ -426,6 +430,10 @@ class ReshkaTUI(App[None]):
         overflow-y: auto;
         scrollbar-color: $primary;
         scrollbar-background: $surface;
+    }
+
+    #transcript.speech {
+        border: solid $error;
     }
 
     #status {
@@ -520,7 +528,10 @@ class ReshkaTUI(App[None]):
         if saved_theme := self._state.get("theme"):
             with suppress(Exception):
                 self.theme = saved_theme
-        self._animate_loading_bar()
+        # Black screen, no UI, until audio setup finishes. Prevents speaking into
+        # an app that looks ready but isn't yet capturing.
+        self._set_ui_visible(False)
+        self._do_setup()
 
     def _c(self, role: str, fallback: str) -> str:
         with suppress(Exception):
@@ -539,24 +550,8 @@ class ReshkaTUI(App[None]):
         self._save_state()
         self._flash_status(f"theme: {next_name}", duration=2.0)
 
-    def _animate_loading_bar(self) -> None:
-        width = max(20, self.size.width - 4)
-        steps = 24
-        interval = 0.009
-
-        def step(i: int) -> None:
-            filled = int(width * i / steps)
-            self._raw_status("█" * filled, color=self._c("primary", _C_ACCENT))
-            if i < steps:
-                self.set_timer(interval, lambda: step(i + 1))
-            else:
-                self.set_timer(0.05, self._do_setup)
-
-        step(1)
-
     def _do_setup(self) -> None:
         """Runs on the main thread — imports heavy deps, then hands off to a worker thread."""
-        self._raw_status("loading…", color=self._c("text-muted", _C_SUBTEXT))
         threading.Thread(target=self._setup_worker, daemon=True).start()
 
     def _setup_worker(self) -> None:
@@ -631,10 +626,22 @@ class ReshkaTUI(App[None]):
         self.call_from_thread(self._on_setup_done)
 
     def _on_setup_done(self) -> None:
+        # Audio is fully ready — reveal the UI now. The black screen flipping to
+        # the full interface is the cue that capture is about to begin.
+        self._set_ui_visible(True)
         self.set_interval(0.05, self._poll_queues)
         self._refresh_status()
         if self.auto_record:
             self.set_timer(0.5, self._start_recording)
+
+    def _set_ui_visible(self, visible: bool) -> None:
+        if visible:
+            self.screen.remove_class("loading")
+        else:
+            self.screen.add_class("loading")
+        for wid in ("#hints", "#transcript", "#controls", "#status"):
+            with suppress(Exception):
+                self.query_one(wid).display = visible
 
     def _stream_loop(self) -> None:
         import sounddevice as sd
@@ -815,15 +822,20 @@ class ReshkaTUI(App[None]):
         elif state == "listening" and self._speech_start_time is not None:
             self._last_speech_duration = time.monotonic() - self._speech_start_time
         self._recording_state = state
+        with suppress(Exception):
+            self.query_one("#transcript", TextArea).set_class(state == "speech", "speech")
         self._refresh_status()
 
     def _refresh_status(self) -> None:
         color = {
-            "speech": self._c("success", _C_GREEN),
+            "speech": self._c("error", _C_DANGER),
             "listening": self._c("primary", _C_ACCENT),
             "idle": self._c("text-muted", _C_SUBTEXT),
         }.get(self._recording_state, self._c("text-muted", _C_SUBTEXT))
-        label = self._recording_state.ljust(len("listening"))
+        display = {"speech": "active", "listening": "listening", "idle": "idle"}.get(
+            self._recording_state, self._recording_state
+        )
+        label = display.ljust(len("listening"))
         if self._active_api_count > 0:
             label += f" · api [{self._active_api_count}]"
         self._render_status(label, color)
