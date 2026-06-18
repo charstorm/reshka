@@ -39,6 +39,7 @@ from dotenv import load_dotenv
 from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.binding import Binding
+from textual.color import Color
 from textual.containers import Horizontal
 from textual.theme import BUILTIN_THEMES
 from textual.widgets import Checkbox, Static, TextArea
@@ -428,8 +429,13 @@ class ReshkaTUI(App[None]):
         margin: 1 1 0 1;
         padding: 0 1;
         overflow-y: auto;
-        scrollbar-color: $primary;
-        scrollbar-background: $surface;
+        scrollbar-color: $scrollbar;
+        scrollbar-color-hover: $scrollbar-hover;
+        scrollbar-color-active: $scrollbar-active;
+        scrollbar-background: $scrollbar-background;
+        scrollbar-background-hover: $scrollbar-background-hover;
+        scrollbar-background-active: $scrollbar-background-active;
+        scrollbar-corner-color: $scrollbar-corner-color;
     }
 
     #transcript.speech {
@@ -534,10 +540,26 @@ class ReshkaTUI(App[None]):
         self._do_setup()
 
     def _c(self, role: str, fallback: str) -> str:
+        """Resolve a theme CSS variable to a concrete opaque hex color.
+
+        Handles plain hex, named/rgb colors, and Textual's ``auto [N%]``
+        expressions (e.g. ``text-muted`` -> ``auto 60%``) by contrasting and
+        blending against the themed background. Returns a 6-digit hex string
+        that Rich can style with, so status text follows the active theme.
+        """
         with suppress(Exception):
-            v = self.get_css_variables().get(role, "")
-            if v and v.startswith("#"):
-                return v
+            variables = self.get_css_variables()
+            v = variables.get(role, "").strip()
+            if not v:
+                return fallback
+            parts = v.split()
+            if parts[0] == "auto":
+                bg = Color.parse(variables.get("background") or "#000000")
+                contrast = Color(0, 0, 0) if bg.brightness > 0.5 else Color(255, 255, 255)
+                if len(parts) > 1 and parts[1].endswith("%"):
+                    return bg.blend(contrast, float(parts[1][:-1]) / 100).hex
+                return contrast.hex
+            return Color.parse(v).hex
         return fallback
 
     def action_cycle_theme(self) -> None:
